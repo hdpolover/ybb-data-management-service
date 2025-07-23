@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
 """
-Test script for YBB Export API endpoints
+YBB Export API Test Suite
+Comprehensive testing for YBB export functionality
 """
 import requests
 import json

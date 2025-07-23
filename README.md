@@ -156,17 +156,26 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ```
 ybb-data-management-web-flask/
 ├── app.py                          # Main Flask application
-├── config.py                       # Configuration settings
 ├── requirements.txt                # Python dependencies
-├── quick_test.py                   # Service test script
-├── IMPLEMENTATION_GUIDE.md         # Detailed implementation guide
+├── config/
+│   ├── __init__.py
+│   └── ybb_export_config.py       # Export templates & mappings
+├── api/
+│   ├── __init__.py
+│   └── ybb_routes.py               # YBB API endpoints
+├── services/
+│   ├── __init__.py
+│   └── ybb_export_service.py       # Core export logic
 ├── utils/
+│   ├── __init__.py
 │   ├── excel_exporter.py          # Excel generation utilities
-│   ├── performance.py             # Performance monitoring
-│   └── database.py                # Database utilities (optional)
-└── examples/
-    ├── simple_php_integration.php  # PHP integration class
-    └── php_large_dataset_integration.php  # Advanced PHP examples
+│   └── performance.py             # Performance monitoring
+├── examples/
+│   └── simple_php_integration.php  # PHP integration class
+├── test_ybb_api.py                 # Comprehensive test suite
+├── deploy.sh                       # Production deployment script
+├── YBB_API_CODEIGNITER_INTEGRATION.md # API documentation
+└── PROJECT_IMPLEMENTATION_SUMMARY.md  # Project overview
 ```
 
 ## 🎯 Use Cases
