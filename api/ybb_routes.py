@@ -1,19 +1,50 @@
 """
 YBB API Blueprint - Handles YBB-specific API endpoints
 """
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, g
 from services.ybb_export_service import YBBExportService
 from io import BytesIO
 import logging
 import json
+import time
 
-logger = logging.getLogger(__name__)
+# Setup logging
+logger = logging.getLogger('ybb_api.routes')
 
 # Create blueprint
 ybb_bp = Blueprint('ybb', __name__, url_prefix='/api/ybb')
 
 # Initialize service
 export_service = YBBExportService()
+
+@ybb_bp.before_request
+def log_ybb_request():
+    """Log YBB-specific request details"""
+    request_id = getattr(g, 'request_id', 'unknown')
+    
+    logger.info(
+        f"YBB_REQUEST | ID: {request_id} | "
+        f"Endpoint: {request.endpoint} | "
+        f"Method: {request.method} | "
+        f"Path: {request.path}"
+    )
+    
+    # Log request data for POST requests
+    if request.method == 'POST' and request.is_json:
+        try:
+            data = request.get_json()
+            export_type = data.get('export_type', 'unknown')
+            template = data.get('template', 'default')
+            record_count = len(data.get('data', [])) if 'data' in data else 0
+            
+            logger.info(
+                f"YBB_EXPORT_REQUEST | ID: {request_id} | "
+                f"Type: {export_type} | "
+                f"Template: {template} | "
+                f"Records: {record_count}"
+            )
+        except Exception as e:
+            logger.warning(f"YBB_REQUEST_LOG_ERROR | ID: {request_id} | Error: {str(e)}")
 
 @ybb_bp.route('/export/participants', methods=['POST'])
 def export_participants():
@@ -30,31 +61,66 @@ def export_participants():
         "sheet_name": "Participants"
     }
     """
+    request_id = getattr(g, 'request_id', 'unknown')
+    start_time = time.time()
+    
     try:
+        logger.info(f"PARTICIPANTS_EXPORT_START | ID: {request_id} | Starting participants export")
+        
         request_data = request.get_json()
         
         if not request_data:
+            logger.error(f"PARTICIPANTS_EXPORT_ERROR | ID: {request_id} | No JSON data provided")
             return jsonify({
                 "status": "error",
-                "message": "No JSON data provided"
+                "message": "No JSON data provided",
+                "request_id": request_id
             }), 400
         
         # Add export type
         request_data["export_type"] = "participants"
         
+        # Log export parameters
+        template = request_data.get('template', 'standard')
+        format_type = request_data.get('format', 'excel')
+        record_count = len(request_data.get('data', []))
+        
+        logger.info(
+            f"PARTICIPANTS_EXPORT_PARAMS | ID: {request_id} | "
+            f"Template: {template} | Format: {format_type} | Records: {record_count}"
+        )
+        
         # Create export
+        logger.info(f"PARTICIPANTS_EXPORT_PROCESSING | ID: {request_id} | Calling export service")
         result = export_service.create_export(request_data)
         
         if result["status"] == "error":
+            logger.error(f"PARTICIPANTS_EXPORT_FAILED | ID: {request_id} | Error: {result.get('message', 'Unknown error')}")
+            result["request_id"] = request_id
             return jsonify(result), 400
         
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        export_id = result.get('data', {}).get('export_id', 'unknown')
+        
+        logger.info(
+            f"PARTICIPANTS_EXPORT_SUCCESS | ID: {request_id} | "
+            f"Export ID: {export_id} | Time: {processing_time}ms"
+        )
+        
+        result["request_id"] = request_id
         return jsonify(result), 200
         
     except Exception as e:
-        logger.error(f"Participants export failed: {str(e)}")
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        logger.error(
+            f"PARTICIPANTS_EXPORT_EXCEPTION | ID: {request_id} | "
+            f"Error: {str(e)} | Time: {processing_time}ms", 
+            exc_info=True
+        )
         return jsonify({
             "status": "error",
-            "message": f"Export failed: {str(e)}"
+            "message": f"Export failed: {str(e)}",
+            "request_id": request_id
         }), 500
 
 @ybb_bp.route('/export/payments', methods=['POST'])
@@ -72,31 +138,66 @@ def export_payments():
         "sheet_name": "Payments"
     }
     """
+    request_id = getattr(g, 'request_id', 'unknown')
+    start_time = time.time()
+    
     try:
+        logger.info(f"PAYMENTS_EXPORT_START | ID: {request_id} | Starting payments export")
+        
         request_data = request.get_json()
         
         if not request_data:
+            logger.error(f"PAYMENTS_EXPORT_ERROR | ID: {request_id} | No JSON data provided")
             return jsonify({
                 "status": "error",
-                "message": "No JSON data provided"
+                "message": "No JSON data provided",
+                "request_id": request_id
             }), 400
         
         # Add export type
         request_data["export_type"] = "payments"
         
+        # Log export parameters
+        template = request_data.get('template', 'standard')
+        format_type = request_data.get('format', 'excel')
+        record_count = len(request_data.get('data', []))
+        
+        logger.info(
+            f"PAYMENTS_EXPORT_PARAMS | ID: {request_id} | "
+            f"Template: {template} | Format: {format_type} | Records: {record_count}"
+        )
+        
         # Create export
+        logger.info(f"PAYMENTS_EXPORT_PROCESSING | ID: {request_id} | Calling export service")
         result = export_service.create_export(request_data)
         
         if result["status"] == "error":
+            logger.error(f"PAYMENTS_EXPORT_FAILED | ID: {request_id} | Error: {result.get('message', 'Unknown error')}")
+            result["request_id"] = request_id
             return jsonify(result), 400
         
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        export_id = result.get('data', {}).get('export_id', 'unknown')
+        
+        logger.info(
+            f"PAYMENTS_EXPORT_SUCCESS | ID: {request_id} | "
+            f"Export ID: {export_id} | Time: {processing_time}ms"
+        )
+        
+        result["request_id"] = request_id
         return jsonify(result), 200
         
     except Exception as e:
-        logger.error(f"Payments export failed: {str(e)}")
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        logger.error(
+            f"PAYMENTS_EXPORT_EXCEPTION | ID: {request_id} | "
+            f"Error: {str(e)} | Time: {processing_time}ms", 
+            exc_info=True
+        )
         return jsonify({
             "status": "error",
-            "message": f"Export failed: {str(e)}"
+            "message": f"Export failed: {str(e)}",
+            "request_id": request_id
         }), 500
 
 @ybb_bp.route('/export/ambassadors', methods=['POST'])
@@ -162,16 +263,34 @@ def get_export_status(export_id):
 @ybb_bp.route('/export/<export_id>/download', methods=['GET'])
 def download_export(export_id):
     """Download complete export file (single file or ZIP archive)"""
+    request_id = getattr(g, 'request_id', 'unknown')
+    start_time = time.time()
+    
     try:
+        logger.info(f"DOWNLOAD_START | ID: {request_id} | Export ID: {export_id}")
+        
         file_type = request.args.get('type', 'single')
+        logger.info(f"DOWNLOAD_TYPE | ID: {request_id} | Type: {file_type}")
         
         file_content, filename = export_service.download_export(export_id, file_type)
         
         if file_content is None:
+            logger.error(f"DOWNLOAD_NOT_FOUND | ID: {request_id} | Export ID: {export_id}")
             return jsonify({
                 "status": "error",
-                "message": "Export file not found or expired"
+                "message": "Export file not found or expired",
+                "request_id": request_id
             }), 404
+        
+        # Log file details
+        file_size = len(file_content)
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        
+        logger.info(
+            f"DOWNLOAD_SUCCESS | ID: {request_id} | "
+            f"Export ID: {export_id} | Filename: {filename} | "
+            f"Size: {file_size} bytes | Time: {processing_time}ms"
+        )
         
         # Determine content type
         if filename.endswith('.zip'):
@@ -191,10 +310,16 @@ def download_export(export_id):
         )
         
     except Exception as e:
-        logger.error(f"Export download failed: {str(e)}")
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        logger.error(
+            f"DOWNLOAD_EXCEPTION | ID: {request_id} | "
+            f"Export ID: {export_id} | Error: {str(e)} | Time: {processing_time}ms", 
+            exc_info=True
+        )
         return jsonify({
             "status": "error",
-            "message": f"Download failed: {str(e)}"
+            "message": f"Download failed: {str(e)}",
+            "request_id": request_id
         }), 500
 
 @ybb_bp.route('/export/<export_id>/download/zip', methods=['GET'])

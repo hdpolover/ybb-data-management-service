@@ -46,10 +46,37 @@ python app.py
 ### Test the Service
 
 ```bash
+# Quick functionality test
 python quick_test.py
+
+# Comprehensive health check
+python monitor_service.py --check all
+
+# Performance monitoring
+python monitor_service.py --check performance --records 1000
 ```
 
 The service will be available at `http://localhost:5000`
+
+### Production Deployment
+
+For production deployment on your hosting (files.ybbfoundation.com):
+
+```bash
+# Make deployment script executable
+chmod +x deploy.sh
+
+# Run deployment (Linux/VPS)
+./deploy.sh deploy
+
+# Check service status
+./deploy.sh status
+
+# View logs
+./deploy.sh logs
+```
+
+See `DEPLOYMENT_GUIDE.md` for detailed deployment instructions.
 
 ## 📡 API Endpoints
 
@@ -156,26 +183,42 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ```
 ybb-data-management-web-flask/
 ├── app.py                          # Main Flask application
+├── config.py                       # Configuration management
 ├── requirements.txt                # Python dependencies
-├── config/
+├── deploy.sh                       # Production deployment script
+├── monitor_service.py              # Health monitoring & performance testing
+├── api/                           # API modules
+│   ├── __init__.py
+│   └── ybb_routes.py               # YBB-specific API endpoints
+├── config/                        # Configuration files
 │   ├── __init__.py
 │   └── ybb_export_config.py       # Export templates & mappings
-├── api/
-│   ├── __init__.py
-│   └── ybb_routes.py               # YBB API endpoints
-├── services/
+├── services/                      # Service modules
 │   ├── __init__.py
 │   └── ybb_export_service.py       # Core export logic
-├── utils/
+├── utils/                         # Utility modules
 │   ├── __init__.py
 │   ├── excel_exporter.py          # Excel generation utilities
+│   ├── log_viewer.py              # Log analysis tools
 │   └── performance.py             # Performance monitoring
-├── examples/
-│   └── simple_php_integration.php  # PHP integration class
-├── test_ybb_api.py                 # Comprehensive test suite
-├── deploy.sh                       # Production deployment script
-├── YBB_API_CODEIGNITER_INTEGRATION.md # API documentation
-└── PROJECT_IMPLEMENTATION_SUMMARY.md  # Project overview
+├── examples/                      # Integration examples
+│   ├── simple_php_integration.php  # Basic PHP integration
+│   ├── php_integration.php        # Advanced PHP integration
+│   └── php_large_dataset_integration.php  # Large dataset handling
+├── static/                        # Static files
+│   └── logs_dashboard.html        # Web-based log viewer
+├── logs/                          # Application logs (auto-created)
+├── temp/                          # Temporary files (auto-created)
+├── tests/                         # Test files
+│   ├── test_api.py                # API endpoint tests
+│   ├── test_ybb_api.py            # YBB-specific tests
+│   ├── test_large_dataset.py      # Performance tests
+│   └── test_logging.py            # Logging system tests
+└── docs/                          # Documentation
+    ├── API_DOCUMENTATION.md       # Complete API reference
+    ├── DEPLOYMENT_GUIDE.md        # Deployment instructions
+    ├── PHP_INTEGRATION_GUIDE.md   # PHP integration examples
+    └── PRODUCTION_CONFIG.md       # Production configuration
 ```
 
 ## 🎯 Use Cases
@@ -211,7 +254,29 @@ $cleanedData = $processor->processData($rawData, [
 
 ### Health Check
 ```bash
+# Basic health check
 curl http://localhost:5000/health
+
+# Comprehensive monitoring
+python monitor_service.py --check all
+
+# Continuous monitoring
+python monitor_service.py --continuous 30
+
+# Performance testing
+python monitor_service.py --check performance --records 5000
+```
+
+### Log Analysis
+```bash
+# View recent logs
+curl http://localhost:5000/api/logs/recent
+
+# Get log statistics
+curl http://localhost:5000/api/logs/stats
+
+# Web dashboard
+open http://localhost:5000/logs-dashboard
 ```
 
 ### Data Validation
@@ -224,16 +289,52 @@ echo "Dataset has {$stats['row_count']} rows and {$stats['column_count']} column
 
 ### Common Issues
 
-1. **Service not starting**: Check if port 5000 is available
-2. **Import errors**: Ensure virtual environment is activated
-3. **Excel export fails**: Verify data format (array of objects)
-4. **Memory issues**: Use chunked processing for large datasets
+1. **Service not starting**: 
+   ```bash
+   # Check port availability
+   netstat -tlnp | grep :5000
+   
+   # Check logs
+   python monitor_service.py --check health
+   ```
+
+2. **Import errors**: 
+   ```bash
+   # Ensure virtual environment is activated
+   which python
+   pip list
+   ```
+
+3. **Excel export fails**: 
+   ```bash
+   # Validate data format
+   python -c "import pandas as pd; print(pd.__version__)"
+   ```
+
+4. **Memory issues**: 
+   ```bash
+   # Use chunked processing
+   python monitor_service.py --check performance --records 100
+   ```
 
 ### Getting Help
 
-1. Run `python quick_test.py` to verify service functionality
-2. Check console logs for error messages
-3. Review the `IMPLEMENTATION_GUIDE.md` for detailed examples
+1. **Check service health**: `python monitor_service.py --check all`
+2. **Review logs**: Access logs dashboard at `/logs-dashboard`
+3. **Run performance tests**: `python monitor_service.py --check performance`
+4. **Validate deployment**: `./deploy.sh health` (production)
+
+### Debug Mode
+
+Enable debug logging:
+```bash
+# Development
+export FLASK_DEBUG=True
+python app.py
+
+# Production
+./deploy.sh logs
+```
 
 ## 🔄 Updates and Maintenance
 
@@ -257,4 +358,8 @@ This project is open source and available under the MIT License.
 
 The service is now ready for integration with your PHP application. Use the provided PHP integration class to start converting your data to Excel files efficiently!
 
-For detailed implementation examples and advanced usage, see `IMPLEMENTATION_GUIDE.md`.
+For detailed implementation examples and advanced usage, see:
+- `API_DOCUMENTATION.md` - Complete API reference
+- `DEPLOYMENT_GUIDE.md` - Production deployment instructions  
+- `PHP_INTEGRATION_GUIDE.md` - PHP integration examples
+- `PRODUCTION_CONFIG.md` - Security and performance configuration

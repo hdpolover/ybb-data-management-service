@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YBB API Logs Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4ade80;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .controls {
+            background: white;
+            padding: 1rem 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .control-group label {
+            font-weight: 500;
+            color: #6b7280;
+        }
+        
+        select, input, button {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background: #2563eb;
+        }
+        
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .stats-bar {
+            background: white;
+            padding: 1rem 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            height: calc(100vh - 160px);
+        }
+        
+        .logs-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .panel-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .logs-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        
+        .log-entry {
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            border-left: 3px solid transparent;
+        }
+        
+        .log-entry.INFO {
+            background: #f0f9ff;
+            border-left-color: #0ea5e9;
+        }
+        
+        .log-entry.ERROR {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+        
+        .log-entry.WARNING {
+            background: #fffbeb;
+            border-left-color: #f59e0b;
+        }
+        
+        .log-timestamp {
+            color: #6b7280;
+            margin-right: 0.5rem;
+        }
+        
+        .log-level {
+            font-weight: 600;
+            margin-right: 0.5rem;
+            padding: 0.125rem 0.25rem;
+            border-radius: 3px;
+            font-size: 0.625rem;
+        }
+        
+        .log-level.INFO {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .log-level.ERROR {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .log-level.WARNING {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .request-id {
+            color: #8b5cf6;
+            font-weight: 500;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .sidebar-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .error-list, .request-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .error-item, .request-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .error-item:hover, .request-item:hover {
+            background: #f9fafb;
+        }
+        
+        .error-time, .request-time {
+            font-size: 0.625rem;
+            color: #6b7280;
+        }
+        
+        .error-message {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 YBB API Logs Dashboard</h1>
+        <div class="status-indicator">
+            <div class="status-dot"></div>
+            <span id="status-text">Connected</span>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>Log Type:</label>
+            <select id="log-type">
+                <option value="all">All Logs</option>
+                <option value="api">API Logs</option>
+                <option value="access">Access Logs</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Level:</label>
+            <select id="log-level">
+                <option value="">All Levels</option>
+                <option value="INFO">INFO</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARNING">WARNING</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Lines:</label>
+            <input type="number" id="log-lines" value="50" min="10" max="500">
+        </div>
+        
+        <div class="control-group">
+            <button id="refresh-btn">🔄 Refresh</button>
+            <button id="auto-refresh-btn">⏰ Auto Refresh</button>
+            <button id="clear-btn">🗑️ Clear</button>
+        </div>
+    </div>
+    
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value" id="total-requests">-</div>
+            <div class="stat-label">Total Requests</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="error-count">-</div>
+            <div class="stat-label">Errors (24h)</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="avg-response-time">-</div>
+            <div class="stat-label">Avg Response (ms)</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="success-rate">-</div>
+            <div class="stat-label">Success Rate</div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="logs-panel">
+            <div class="panel-header">
+                <div class="panel-title">📋 Recent Logs</div>
+                <span id="last-updated">Never</span>
+            </div>
+            <div class="logs-container" id="logs-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading logs...
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="sidebar-panel">
+                <div class="panel-header">
+                    <div class="panel-title">❌ Recent Errors</div>
+                </div>
+                <div class="error-list" id="error-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading errors...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-panel">
+                <div class="panel-header">
+                    <div class="panel-title">🕒 Active Requests</div>
+                </div>
+                <div class="request-list" id="request-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading requests...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class LogDashboard {
+            constructor() {
+                this.apiBaseUrl = 'http://localhost:5000';
+                this.autoRefreshInterval = null;
+                this.isAutoRefreshing = false;
+                
+                this.initializeEventListeners();
+                this.loadInitialData();
+            }
+            
+            initializeEventListeners() {
+                document.getElementById('refresh-btn').addEventListener('click', () => this.refreshLogs());
+                document.getElementById('auto-refresh-btn').addEventListener('click', () => this.toggleAutoRefresh());
+                document.getElementById('clear-btn').addEventListener('click', () => this.clearLogs());
+                
+                // Auto-refresh when controls change
+                ['log-type', 'log-level', 'log-lines'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => {
+                        if (this.isAutoRefreshing) {
+                            this.refreshLogs();
+                        }
+                    });
+                });
+            }
+            
+            async loadInitialData() {
+                await Promise.all([
+                    this.refreshLogs(),
+                    this.loadStats(),
+                    this.loadErrors()
+                ]);
+            }
+            
+            async refreshLogs() {
+                try {
+                    const logType = document.getElementById('log-type').value;
+                    const logLevel = document.getElementById('log-level').value;
+                    const lines = document.getElementById('log-lines').value;
+                    
+                    const params = new URLSearchParams({
+                        type: logType,
+                        lines: lines
+                    });
+                    
+                    if (logLevel) {
+                        params.append('level', logLevel);
+                    }
+                    
+                    const response = await fetch(`${this.apiBaseUrl}/api/logs/recent?${params}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.displayLogs(data.data.logs);
+                        this.updateLastUpdated();
+                        this.updateStatus('Connected', true);
+                    } else {
+                        throw new Error(data.message || 'Failed to load logs');
+                    }
+                } catch (error) {
+                    console.error('Error loading logs:', error);
+                    this.updateStatus('Connection Error', false);
+                    this.displayError('Failed to load logs: ' + error.message);
+                }
+            }
+            
+            async loadStats() {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/logs/stats?hours=24`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        const stats = data.data;
+                        
+                        document.getElementById('total-requests').textContent = 
+                            stats.performance.total_requests || 0;
+                        document.getElementById('error-count').textContent = 
+                            stats.errors.total_errors || 0;
+                        document.getElementById('avg-response-time').textContent = 
+                            stats.performance.response_times.avg || 0;
+                        
+                        // Calculate success rate
+                        const total = stats.performance.total_requests || 0;
+                        const errors = stats.errors.total_errors || 0;
+                        const successRate = total > 0 ? ((total - errors) / total * 100).toFixed(1) : 100;
+                        document.getElementById('success-rate').textContent = `${successRate}%`;
+                    }
+                } catch (error) {
+                    console.error('Error loading stats:', error);
+                }
+            }
+            
+            async loadErrors() {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/logs/recent?level=ERROR&lines=20`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.displayErrors(data.data.logs);
+                    }
+                } catch (error) {
+                    console.error('Error loading errors:', error);
+                }
+            }
+            
+            displayLogs(logs) {
+                const container = document.getElementById('logs-container');
+                
+                if (!logs || logs.length === 0) {
+                    container.innerHTML = '<div class="loading">No logs found</div>';
+                    return;
+                }
+                
+                const logsHtml = logs.map(log => this.formatLogEntry(log)).join('');
+                container.innerHTML = logsHtml;
+                
+                // Auto-scroll to bottom
+                container.scrollTop = container.scrollHeight;
+            }
+            
+            displayErrors(errors) {
+                const container = document.getElementById('error-list');
+                
+                if (!errors || errors.length === 0) {
+                    container.innerHTML = '<div class="loading">No recent errors</div>';
+                    return;
+                }
+                
+                const errorsHtml = errors.map(error => `
+                    <div class="error-item" onclick="dashboard.viewRequestDetails('${error.request_id || 'unknown'}')">
+                        <div class="error-time">${error.timestamp || 'Unknown time'}</div>
+                        <div class="error-message">${this.truncateText(error.message || 'Unknown error', 80)}</div>
+                    </div>
+                `).join('');
+                
+                container.innerHTML = errorsHtml;
+            }
+            
+            formatLogEntry(log) {
+                const level = log.level || 'INFO';
+                const timestamp = log.timestamp || 'N/A';
+                const message = log.message || 'No message';
+                const requestId = log.request_id;
+                
+                return `
+                    <div class="log-entry ${level}">
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span class="log-level ${level}">${level}</span>
+                        ${requestId ? `<span class="request-id">[${requestId}]</span>` : ''}
+                        <span class="log-message">${this.escapeHtml(message)}</span>
+                    </div>
+                `;
+            }
+            
+            async viewRequestDetails(requestId) {
+                if (!requestId || requestId === 'unknown') return;
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/logs/request/${requestId}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.displayRequestTimeline(data.data.logs, requestId);
+                    }
+                } catch (error) {
+                    console.error('Error loading request details:', error);
+                }
+            }
+            
+            displayRequestTimeline(logs, requestId) {
+                const container = document.getElementById('logs-container');
+                
+                if (!logs || logs.length === 0) {
+                    container.innerHTML = `<div class="loading">No logs found for request ${requestId}</div>`;
+                    return;
+                }
+                
+                const timelineHtml = `
+                    <div style="padding: 1rem; background: #f3f4f6; margin-bottom: 1rem; border-radius: 6px;">
+                        <strong>🔍 Request Timeline: ${requestId}</strong>
+                        <button onclick="dashboard.refreshLogs()" style="float: right; background: #6b7280; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer;">← Back to Live Logs</button>
+                    </div>
+                    ${logs.map(log => this.formatLogEntry(log)).join('')}
+                `;
+                
+                container.innerHTML = timelineHtml;
+            }
+            
+            toggleAutoRefresh() {
+                const button = document.getElementById('auto-refresh-btn');
+                
+                if (this.isAutoRefreshing) {
+                    clearInterval(this.autoRefreshInterval);
+                    this.isAutoRefreshing = false;
+                    button.textContent = '⏰ Auto Refresh';
+                    button.style.background = '#3b82f6';
+                } else {
+                    this.autoRefreshInterval = setInterval(() => {
+                        this.refreshLogs();
+                        this.loadStats();
+                        this.loadErrors();
+                    }, 5000); // Refresh every 5 seconds
+                    
+                    this.isAutoRefreshing = true;
+                    button.textContent = '⏹️ Stop Auto';
+                    button.style.background = '#ef4444';
+                }
+            }
+            
+            clearLogs() {
+                document.getElementById('logs-container').innerHTML = '<div class="loading">Logs cleared</div>';
+            }
+            
+            updateLastUpdated() {
+                const now = new Date().toLocaleTimeString();
+                document.getElementById('last-updated').textContent = `Updated: ${now}`;
+            }
+            
+            updateStatus(text, isConnected) {
+                document.getElementById('status-text').textContent = text;
+                const dot = document.querySelector('.status-dot');
+                dot.style.backgroundColor = isConnected ? '#4ade80' : '#ef4444';
+            }
+            
+            displayError(message) {
+                const container = document.getElementById('logs-container');
+                container.innerHTML = `
+                    <div style="padding: 1rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #dc2626;">
+                        <strong>❌ Error:</strong> ${this.escapeHtml(message)}
+                    </div>
+                `;
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            truncateText(text, maxLength) {
+                if (text.length <= maxLength) return text;
+                return text.substring(0, maxLength) + '...';
+            }
+        }
+        
+        // Initialize dashboard
+        const dashboard = new LogDashboard();
+        
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 'r':
+                        e.preventDefault();
+                        dashboard.refreshLogs();
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        dashboard.clearLogs();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
