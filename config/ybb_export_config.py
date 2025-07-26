@@ -164,13 +164,15 @@ SYSTEM_CONFIG = {
     },
     "cleanup": {
         "auto_cleanup_enabled": True,
-        "max_concurrent_exports": 5,
+        "max_concurrent_exports": 20,  # Keep more exports available
         "cleanup_on_startup": True,
-        "cleanup_on_export": True,
-        "keep_temp_files_minutes": 30,
+        "cleanup_on_export": False,  # Don't cleanup before each export
+        "keep_temp_files_minutes": 120,  # Keep temp files longer (2 hours)
         "storage_warning_threshold_mb": 500,
         "storage_cleanup_threshold_mb": 1000,
-        "force_cleanup_after_days": 1
+        "force_cleanup_after_days": 1,
+        "cleanup_interval_minutes": 30,  # Only cleanup every 30 minutes
+        "min_export_age_minutes": 10  # Don't cleanup exports less than 10 minutes old
     },
     "chunk_configurations": {
         "default_chunk_size": 10000,

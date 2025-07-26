@@ -32,10 +32,15 @@ class YBBExportService:
         cleanup_config = get_cleanup_config()
         storage_limits = get_storage_limits()
         
-        self.max_concurrent_exports = storage_limits.get('max_concurrent_exports', 5)
+        self.max_concurrent_exports = storage_limits.get('max_concurrent_exports', 20)
         self.auto_cleanup_enabled = cleanup_config.get('auto_cleanup_enabled', True)
         self.cleanup_on_startup = cleanup_config.get('cleanup_on_startup', True)
-        self.cleanup_on_export = cleanup_config.get('cleanup_on_export', True)
+        self.cleanup_on_export = cleanup_config.get('cleanup_on_export', False)
+        self.cleanup_interval_minutes = cleanup_config.get('cleanup_interval_minutes', 30)
+        self.min_export_age_minutes = cleanup_config.get('min_export_age_minutes', 10)
+        
+        # Track last cleanup time
+        self.last_cleanup_time = datetime.now()
         
         # Perform startup cleanup if enabled
         if self.cleanup_on_startup:
@@ -44,8 +49,8 @@ class YBBExportService:
     def create_export(self, export_request):
         """Main export creation method"""
         try:
-            # Clean up old exports before creating new ones if enabled
-            if self.auto_cleanup_enabled and self.cleanup_on_export:
+            # Periodic cleanup based on time interval (not before every export)
+            if self.auto_cleanup_enabled and self._should_run_cleanup():
                 self._cleanup_old_exports()
             
             # Validate request
@@ -457,7 +462,64 @@ class YBBExportService:
         
         return None, None
     
+    def _should_run_cleanup(self):
+        """Check if cleanup should run based on time interval"""
+        current_time = datetime.now()
+        time_since_last_cleanup = (current_time - self.last_cleanup_time).total_seconds() / 60  # in minutes
+        
+        return time_since_last_cleanup >= self.cleanup_interval_minutes
+
     def _cleanup_old_exports(self):
+        """Clean up old exports while respecting minimum age and time intervals"""
+        if not self.exports_storage:
+            return
+            
+        try:
+            # Update last cleanup time
+            self.last_cleanup_time = datetime.now()
+            current_time = datetime.now()
+            
+            # Sort exports by creation time (newest first)
+            exports_by_time = sorted(
+                self.exports_storage.items(), 
+                key=lambda x: x[1].get("created_at", datetime.min), 
+                reverse=True
+            )
+            
+            # Filter out exports that are too young to cleanup
+            cleanable_exports = []
+            protected_exports = []
+            
+            for export_id, export_info in exports_by_time:
+                created_at = export_info.get("created_at", datetime.min)
+                age_minutes = (current_time - created_at).total_seconds() / 60
+                
+                if age_minutes >= self.min_export_age_minutes:
+                    cleanable_exports.append((export_id, export_info))
+                else:
+                    protected_exports.append((export_id, export_info))
+            
+            # Calculate how many we can keep
+            total_exports = len(cleanable_exports) + len(protected_exports)
+            
+            # Only cleanup if we exceed the limit and have cleanable exports
+            if total_exports > self.max_concurrent_exports and cleanable_exports:
+                # Keep all protected exports + some cleanable ones
+                keep_cleanable_count = max(0, self.max_concurrent_exports - len(protected_exports))
+                exports_to_remove = cleanable_exports[keep_cleanable_count:]
+                
+                if exports_to_remove:
+                    logger.info(f"Cleaning up {len(exports_to_remove)} old exports (total: {total_exports}, limit: {self.max_concurrent_exports}, protected: {len(protected_exports)})")
+                    
+                    for export_id, export_info in exports_to_remove:
+                        age_minutes = (current_time - export_info.get('created_at', datetime.min)).total_seconds() / 60
+                        logger.info(f"Cleaning up export {export_id} (age: {age_minutes:.1f} minutes)")
+                        self._cleanup_export(export_id)
+                        
+        except Exception as e:
+            logger.error(f"Error during old exports cleanup: {str(e)}")
+
+    def _old_cleanup_old_exports(self):
         """Clean up old exports to maintain only the most recent ones"""
         try:
             # Get list of exports sorted by creation time (newest first)
