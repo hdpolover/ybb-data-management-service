@@ -682,4 +682,47 @@ setInterval(function() {
 
 ---
 
-This documentation provides everything your CodeIgniter team needs to integrate with the YBB Export API. The service is ready for production use and handles all the complex data processing, chunking, and Excel generation automatically.
+## 🧹 Storage Management & Automatic Cleanup
+
+The YBB Export API includes automatic storage management to prevent file accumulation:
+
+### Storage Information
+```php
+// Check storage usage
+$storage_response = file_get_contents("http://localhost:5000/api/ybb/storage/info");
+$storage_info = json_decode($storage_response, true);
+
+echo "Total exports: " . $storage_info['total_exports'];
+echo "Storage used: " . $storage_info['total_size_mb'] . " MB";
+echo "Max concurrent: " . $storage_info['max_concurrent_exports'];
+```
+
+### Manual Cleanup (Admin Only)
+```php
+// Force cleanup of all old exports
+$cleanup_options = [
+    'http' => [
+        'method' => 'POST',
+        'header' => 'Content-Type: application/json',
+        'content' => '{}'
+    ]
+];
+$context = stream_context_create($cleanup_options);
+$cleanup_response = file_get_contents("http://localhost:5000/api/ybb/cleanup/force", false, $context);
+$cleanup_result = json_decode($cleanup_response, true);
+
+if ($cleanup_result['status'] === 'success') {
+    echo "Cleaned up " . $cleanup_result['files_removed'] . " files";
+}
+```
+
+### Automatic Cleanup Features
+- **✅ Keeps Recent Exports**: Automatically maintains the 5 most recent exports
+- **✅ Startup Cleanup**: Removes old files when service starts
+- **✅ Export-Time Cleanup**: Cleans up before creating new exports
+- **✅ Configurable Limits**: Adjust retention settings via configuration
+- **✅ Safe Operations**: Never deletes source data, only export files
+
+---
+
+This documentation provides everything your CodeIgniter team needs to integrate with the YBB Export API. The service is ready for production use and handles all the complex data processing, chunking, Excel generation, and storage management automatically.

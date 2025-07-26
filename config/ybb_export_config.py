@@ -162,6 +162,16 @@ SYSTEM_CONFIG = {
         "max_concurrent_large_exports": 3,
         "file_retention_days": 7
     },
+    "cleanup": {
+        "auto_cleanup_enabled": True,
+        "max_concurrent_exports": 5,
+        "cleanup_on_startup": True,
+        "cleanup_on_export": True,
+        "keep_temp_files_minutes": 30,
+        "storage_warning_threshold_mb": 500,
+        "storage_cleanup_threshold_mb": 1000,
+        "force_cleanup_after_days": 1
+    },
     "chunk_configurations": {
         "default_chunk_size": 10000,
         "min_chunk_size": 1000,
@@ -214,3 +224,21 @@ def should_use_chunked_processing(record_count, template_config):
     """Determine if chunked processing should be used"""
     max_single_file = template_config.get("max_records_single_file", 15000)
     return record_count > max_single_file
+
+def get_cleanup_config(key=None):
+    """Get cleanup configuration settings"""
+    cleanup_config = SYSTEM_CONFIG.get("cleanup", {})
+    if key:
+        return cleanup_config.get(key)
+    return cleanup_config
+
+def get_storage_limits():
+    """Get storage-related limits and thresholds"""
+    cleanup_config = SYSTEM_CONFIG.get("cleanup", {})
+    return {
+        "max_concurrent_exports": cleanup_config.get("max_concurrent_exports", 5),
+        "storage_warning_threshold_mb": cleanup_config.get("storage_warning_threshold_mb", 500),
+        "storage_cleanup_threshold_mb": cleanup_config.get("storage_cleanup_threshold_mb", 1000),
+        "file_retention_days": SYSTEM_CONFIG.get("limits", {}).get("file_retention_days", 7),
+        "keep_temp_files_minutes": cleanup_config.get("keep_temp_files_minutes", 30)
+    }

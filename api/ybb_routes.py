@@ -102,6 +102,10 @@ def export_participants():
         processing_time = round((time.time() - start_time) * 1000, 2)
         export_id = result.get('data', {}).get('export_id', 'unknown')
         
+        # Update metadata with actual processing time
+        if result["status"] == "success" and "metadata" in result:
+            result["metadata"]["processing_time"] = processing_time / 1000  # Convert to seconds
+        
         logger.info(
             f"PARTICIPANTS_EXPORT_SUCCESS | ID: {request_id} | "
             f"Export ID: {export_id} | Time: {processing_time}ms"
@@ -178,6 +182,10 @@ def export_payments():
         
         processing_time = round((time.time() - start_time) * 1000, 2)
         export_id = result.get('data', {}).get('export_id', 'unknown')
+        
+        # Update metadata with actual processing time
+        if result["status"] == "success" and "metadata" in result:
+            result["metadata"]["processing_time"] = processing_time / 1000  # Convert to seconds
         
         logger.info(
             f"PAYMENTS_EXPORT_SUCCESS | ID: {request_id} | "
@@ -486,12 +494,21 @@ def get_system_config():
 def cleanup_exports():
     """Clean up expired exports (admin endpoint)"""
     try:
-        # In production, add authentication/authorization here
-        cleaned_count = export_service.cleanup_expired_exports()
+        cleanup_type = request.json.get('type', 'expired') if request.is_json else 'expired'
+        
+        if cleanup_type == 'all':
+            # Force cleanup all exports
+            cleaned_count = export_service.force_cleanup_all_exports()
+            message = f"Force cleaned up {cleaned_count} exports"
+        else:
+            # Clean up only expired exports
+            cleaned_count = export_service.cleanup_expired_exports()
+            message = f"Cleaned up {cleaned_count} expired exports"
         
         return jsonify({
             "status": "success",
-            "message": f"Cleaned up {cleaned_count} expired exports"
+            "message": message,
+            "cleaned_count": cleaned_count
         }), 200
         
     except Exception as e:
@@ -499,6 +516,24 @@ def cleanup_exports():
         return jsonify({
             "status": "error",
             "message": f"Cleanup failed: {str(e)}"
+        }), 500
+
+@ybb_bp.route('/storage/info', methods=['GET'])
+def get_storage_info():
+    """Get storage usage information (admin endpoint)"""
+    try:
+        storage_info = export_service.get_storage_info()
+        
+        return jsonify({
+            "status": "success",
+            "data": storage_info
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Storage info retrieval failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Storage info retrieval failed: {str(e)}"
         }), 500
 
 # Error handlers for the blueprint
