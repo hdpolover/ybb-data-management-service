@@ -11,3 +11,4 @@ restartPolicyType = "on_failure"
 PYTHONPATH = "/app"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
+# Updated: 2025-07-26 - Fixed 404 export errors with improved cleanup system
