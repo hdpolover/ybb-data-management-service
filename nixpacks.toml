@@ -1,0 +1,8 @@
+[start]
+cmd = "gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload"
+
+[variables]
+PYTHONPATH = "/app"
+FLASK_APP = "app.py"
+FLASK_ENV = "production"
+PORT = "5000"

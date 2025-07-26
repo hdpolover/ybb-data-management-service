@@ -14,7 +14,7 @@ class Config:
     
     # API settings
     API_HOST = os.environ.get('API_HOST', '0.0.0.0')
-    API_PORT = int(os.environ.get('API_PORT', 5000))
+    API_PORT = int(os.environ.get('PORT') or os.environ.get('API_PORT', 5000))
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 104857600))  # 100MB
     
     # Performance settings
