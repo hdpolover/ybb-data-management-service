@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = ". /opt/venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload"
+startCommand = ". /opt/venv/bin/activate && python -c 'import numpy; print(\"NumPy version:\", numpy.__version__)' && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
@@ -11,4 +11,5 @@ restartPolicyType = "on_failure"
 PYTHONPATH = "/app"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
-# Updated: 2025-07-26 - Fixed 404 export errors with improved cleanup system
+NUMPY_DISABLE_PYTHON_CHECKS = "1"
+# Updated: 2025-07-26 - Fixed 404 export errors with improved cleanup system and numpy fix
