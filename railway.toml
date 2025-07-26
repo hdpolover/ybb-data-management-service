@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload"
+startCommand = ". /opt/venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
