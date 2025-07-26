@@ -2,14 +2,14 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = ". /opt/venv/bin/activate && python -c 'import numpy; print(\"NumPy version:\", numpy.__version__)' && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload"
+startCommand = ". /opt/venv/bin/activate && python app_fallback.py"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 
 [env]
 PYTHONPATH = "/app"
-FLASK_APP = "app.py"
+FLASK_APP = "app_fallback.py"
 FLASK_ENV = "production"
 NUMPY_DISABLE_PYTHON_CHECKS = "1"
-# Updated: 2025-07-26 - Fixed 404 export errors with improved cleanup system and numpy fix
+# Updated: 2025-07-26 - Using fallback app without numpy/pandas dependencies
