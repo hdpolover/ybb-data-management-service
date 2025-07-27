@@ -36,6 +36,10 @@ class ExcelExporter:
         if not str_value.strip():
             return ""
         
+        # Handle Excel formula injection (security)
+        if str_value.strip().startswith(('=', '+', '-', '@')):
+            str_value = "'" + str_value  # Prefix with apostrophe to treat as text
+        
         # Remove or replace problematic characters for Excel
         # Excel doesn't support characters below ASCII 32 except tab (9), newline (10), carriage return (13)
         cleaned_value = ""
@@ -49,10 +53,12 @@ class ExcelExporter:
                     cleaned_value += " "
             elif char_code == 127:  # DEL character
                 cleaned_value += " "
+            elif char_code > 1114111:  # Beyond valid Unicode range
+                cleaned_value += " "
             else:
                 cleaned_value += char
         
-        # Normalize Unicode characters
+        # Normalize Unicode characters for better compatibility
         try:
             cleaned_value = unicodedata.normalize('NFKC', cleaned_value)
         except Exception:
@@ -60,14 +66,21 @@ class ExcelExporter:
             try:
                 cleaned_value = cleaned_value.encode('utf-8', errors='ignore').decode('utf-8')
             except Exception:
-                cleaned_value = str(value)  # Fallback to original string conversion
+                # Last resort: keep only ASCII printable characters
+                cleaned_value = ''.join(char for char in str_value if 32 <= ord(char) <= 126)
         
-        # Remove excessive whitespace
-        cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+        # Remove excessive whitespace but preserve single spaces and line breaks
+        cleaned_value = re.sub(r'[ \t]+', ' ', cleaned_value)  # Multiple spaces/tabs to single space
+        cleaned_value = re.sub(r'\n+', '\n', cleaned_value)    # Multiple newlines to single
+        cleaned_value = cleaned_value.strip()
         
         # Excel cell limit (32,767 characters)
         if len(cleaned_value) > 32767:
             cleaned_value = cleaned_value[:32764] + "..."
+        
+        # Final check: ensure it's not empty after cleaning
+        if not cleaned_value:
+            return ""
         
         return cleaned_value
     
@@ -138,52 +151,57 @@ class ExcelExporter:
             if len(sheet_name) > 31:
                 sheet_name = sheet_name[:31]
             
-            # Create Excel file in memory using openpyxl
-            output = BytesIO()
-            wb = Workbook()
-            ws = wb.active
-            ws.title = sheet_name
+            # Try multiple approaches for maximum compatibility
+            output = None
+            success = False
+            methods_tried = []
             
-            # Write data to worksheet with proper error handling
+            # Method 1: Try openpyxl with manual cell writing (most compatible)
             try:
-                # Add headers
-                for col_num, header in enumerate(df.columns, 1):
-                    cell = ws.cell(row=1, column=col_num)
-                    cell.value = header
-                
-                # Add data rows
-                for row_num, row_data in enumerate(df.itertuples(index=False), 2):
-                    for col_num, value in enumerate(row_data, 1):
-                        cell = ws.cell(row=row_num, column=col_num)
-                        cell.value = value
-                        
+                output = ExcelExporter._create_with_openpyxl_manual(df, sheet_name, format_options)
+                success = True
+                logger.info("Excel file created using openpyxl manual method")
             except Exception as e:
-                logger.warning(f"Error writing data to Excel, falling back to dataframe_to_rows: {str(e)}")
-                # Fallback method
-                ws.delete_rows(1, ws.max_row)  # Clear existing data
-                for r in dataframe_to_rows(df, index=False, header=True):
-                    # Sanitize each row value
-                    sanitized_row = [ExcelExporter.sanitize_cell_value(cell) for cell in r]
-                    ws.append(sanitized_row)
+                methods_tried.append(f"openpyxl_manual: {str(e)}")
+                logger.warning(f"openpyxl manual method failed: {str(e)}")
             
-            # Apply formatting if specified
-            if format_options:
-                ExcelExporter._apply_formatting(ws, df, format_options)
-            else:
-                # Apply default formatting
-                ExcelExporter._apply_default_formatting(ws, df)
+            # Method 2: Try pandas ExcelWriter with openpyxl engine (fallback)
+            if not success:
+                try:
+                    output = ExcelExporter._create_with_pandas_openpyxl(df, sheet_name, format_options)
+                    success = True
+                    logger.info("Excel file created using pandas with openpyxl engine")
+                except Exception as e:
+                    methods_tried.append(f"pandas_openpyxl: {str(e)}")
+                    logger.warning(f"pandas openpyxl method failed: {str(e)}")
             
-            # Save to BytesIO with error handling
-            try:
-                wb.save(output)
-                output.seek(0)
-            except Exception as e:
-                logger.error(f"Failed to save Excel file: {str(e)}")
-                # Try to create a basic Excel file without formatting
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl', options={'remove_timezone': True}) as writer:
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-                output.seek(0)
+            # Method 3: Try xlsxwriter engine (optional for Railway)
+            if not success:
+                try:
+                    output = ExcelExporter._create_with_xlsxwriter(df, sheet_name, format_options)
+                    success = True
+                    logger.info("Excel file created using xlsxwriter engine")
+                except Exception as e:
+                    methods_tried.append(f"xlsxwriter: {str(e)}")
+                    logger.warning(f"xlsxwriter method failed: {str(e)}")
+            
+            # Method 4: Ultimate fallback - basic pandas without formatting
+            if not success:
+                try:
+                    logger.info("Attempting ultimate fallback: basic pandas Excel creation")
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    output.seek(0)
+                    success = True
+                    logger.info("Excel file created using basic pandas fallback")
+                except Exception as e:
+                    methods_tried.append(f"basic_pandas: {str(e)}")
+                    logger.error(f"Basic pandas fallback also failed: {str(e)}")
+            
+            if not success or output is None:
+                error_details = "; ".join(methods_tried)
+                raise Exception(f"All Excel creation methods failed: {error_details}")
             
             logger.info(f"Excel file created successfully with {len(df)} rows")
             return output
@@ -191,6 +209,154 @@ class ExcelExporter:
         except Exception as e:
             logger.error(f"Excel export failed: {str(e)}")
             raise Exception(f"Excel export failed: {str(e)}")
+    
+    @staticmethod
+    def _create_with_openpyxl_manual(df, sheet_name, format_options):
+        """Create Excel file using openpyxl with manual cell writing for maximum compatibility"""
+        output = BytesIO()
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        
+        # Write headers
+        for col_num, header in enumerate(df.columns, 1):
+            cell = ws.cell(row=1, column=col_num)
+            # Ensure header is string and clean
+            header_value = ExcelExporter.sanitize_cell_value(str(header))
+            cell.value = header_value
+        
+        # Write data rows
+        for row_num, (_, row_data) in enumerate(df.iterrows(), 2):
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num)
+                # Clean and convert value
+                if pd.isna(value) or value is None:
+                    cell.value = ""
+                else:
+                    # Convert to string first, then sanitize
+                    str_value = str(value)
+                    clean_value = ExcelExporter.sanitize_cell_value(str_value)
+                    
+                    # Try to preserve numeric types if possible
+                    if str_value.replace('.', '').replace('-', '').isdigit():
+                        try:
+                            if '.' in str_value:
+                                cell.value = float(clean_value)
+                            else:
+                                cell.value = int(clean_value)
+                        except (ValueError, TypeError):
+                            cell.value = clean_value
+                    else:
+                        cell.value = clean_value
+        
+        # Apply formatting
+        if format_options:
+            ExcelExporter._apply_formatting(ws, df, format_options)
+        else:
+            ExcelExporter._apply_default_formatting(ws, df)
+        
+        # Save with explicit options for compatibility
+        wb.save(output)
+        output.seek(0)
+        return output
+    
+    @staticmethod
+    def _create_with_pandas_openpyxl(df, sheet_name, format_options):
+        """Create Excel file using pandas with openpyxl engine"""
+        output = BytesIO()
+        
+        try:
+            # Use pandas ExcelWriter with specific options for compatibility
+            # Note: options parameter may not be available in all pandas versions
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                # Set options on the writer if supported
+                try:
+                    writer.options = {
+                        'remove_timezone': True,
+                        'strings_to_formulas': False,
+                        'strings_to_urls': False
+                    }
+                except (AttributeError, TypeError):
+                    # Options not supported in this pandas version
+                    logger.debug("ExcelWriter options not supported, using defaults")
+                
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+                # Apply basic formatting
+                workbook = writer.book
+                worksheet = writer.sheets[sheet_name]
+                ExcelExporter._apply_default_formatting(worksheet, df)
+                
+        except Exception as e:
+            logger.warning(f"pandas openpyxl with options failed, trying basic approach: {str(e)}")
+            # Fallback to basic pandas without options
+            output = BytesIO()
+            df.to_excel(output, sheet_name=sheet_name, index=False, engine='openpyxl')
+        
+        output.seek(0)
+        return output
+    
+    @staticmethod
+    def _create_with_xlsxwriter(df, sheet_name, format_options):
+        """Create Excel file using xlsxwriter engine (fallback)"""
+        output = BytesIO()
+        
+        try:
+            # Try to use xlsxwriter if available
+            try:
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    # Set options if supported
+                    try:
+                        writer.options = {
+                            'remove_timezone': True,
+                            'strings_to_formulas': False,
+                            'strings_to_urls': False
+                        }
+                    except (AttributeError, TypeError):
+                        logger.debug("ExcelWriter options not supported for xlsxwriter")
+                    
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    
+                    # Basic formatting with xlsxwriter
+                    workbook = writer.book
+                    worksheet = writer.sheets[sheet_name]
+                    
+                    # Header format
+                    header_format = workbook.add_format({
+                        'bold': True,
+                        'bg_color': '#366092',
+                        'font_color': 'white',
+                        'align': 'center',
+                        'valign': 'vcenter'
+                    })
+                    
+                    # Apply header formatting
+                    for col_num, column in enumerate(df.columns):
+                        worksheet.write(0, col_num, column, header_format)
+                    
+                    # Auto-adjust column widths
+                    for i, column in enumerate(df.columns):
+                        max_len = max(
+                            df[column].astype(str).apply(len).max(),
+                            len(str(column))
+                        )
+                        worksheet.set_column(i, i, min(max_len + 2, 50))
+            except Exception as writer_error:
+                # Fallback to basic xlsxwriter without options
+                logger.debug(f"xlsxwriter with options failed: {writer_error}")
+                output = BytesIO()
+                df.to_excel(output, sheet_name=sheet_name, index=False, engine='xlsxwriter')
+        
+        except ImportError:
+            # xlsxwriter not available - this is OK for Railway deployment
+            logger.info("xlsxwriter not available, will use openpyxl fallback")
+            raise Exception("xlsxwriter not available")
+        except Exception as e:
+            logger.warning(f"xlsxwriter method failed: {str(e)}")
+            raise Exception(f"xlsxwriter failed: {str(e)}")
+        
+        output.seek(0)
+        return output
     
     @staticmethod
     def _apply_default_formatting(worksheet, dataframe):
