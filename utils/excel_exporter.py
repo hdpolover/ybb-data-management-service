@@ -203,7 +203,26 @@ class ExcelExporter:
                 error_details = "; ".join(methods_tried)
                 raise Exception(f"All Excel creation methods failed: {error_details}")
             
-            logger.info(f"Excel file created successfully with {len(df)} rows")
+            # Validate the created file
+            file_content = output.getvalue()
+            if len(file_content) < 100:
+                raise Exception(f"Generated Excel file is too small ({len(file_content)} bytes), likely corrupted")
+            
+            if not file_content.startswith(b'PK'):
+                raise Exception("Generated file doesn't have valid Excel header (missing PK signature)")
+            
+            # Try to validate by opening with openpyxl
+            try:
+                from openpyxl import load_workbook
+                output.seek(0)
+                test_wb = load_workbook(output)
+                test_wb.close()
+                output.seek(0)
+                logger.debug("Excel file validation passed")
+            except Exception as validation_error:
+                logger.warning(f"Excel file validation failed, but continuing: {str(validation_error)}")
+            
+            logger.info(f"Excel file created successfully with {len(df)} rows, size: {len(file_content)} bytes")
             return output
             
         except Exception as e:

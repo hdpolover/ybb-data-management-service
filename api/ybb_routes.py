@@ -300,7 +300,7 @@ def download_export(export_id):
             f"Size: {file_size} bytes | Time: {processing_time}ms"
         )
         
-        # Determine content type
+        # Determine content type and ensure proper headers
         if filename.endswith('.zip'):
             content_type = 'application/zip'
         elif filename.endswith('.xlsx'):
@@ -310,12 +310,45 @@ def download_export(export_id):
         else:
             content_type = 'application/octet-stream'
         
-        return send_file(
-            BytesIO(file_content),
-            as_attachment=True,
-            download_name=filename,
-            mimetype=content_type
+        # Validate file content before sending
+        if len(file_content) < 100:
+            logger.error(f"DOWNLOAD_FILE_TOO_SMALL | ID: {request_id} | Size: {len(file_content)} bytes")
+            return jsonify({
+                "status": "error",
+                "message": "Generated file appears to be corrupted (too small)",
+                "request_id": request_id
+            }), 500
+        
+        # For Excel files, validate the header
+        if filename.endswith('.xlsx'):
+            if not file_content.startswith(b'PK'):
+                logger.error(f"DOWNLOAD_INVALID_EXCEL | ID: {request_id} | Missing PK header")
+                return jsonify({
+                    "status": "error",
+                    "message": "Generated Excel file appears to be corrupted (invalid header)",
+                    "request_id": request_id
+                }), 500
+        
+        # Clean filename for download
+        safe_filename = filename.replace(' ', '_').replace('(', '').replace(')', '')
+        safe_filename = ''.join(c for c in safe_filename if c.isalnum() or c in '._-')
+        
+        from flask import Response
+        
+        # Create response with explicit headers
+        response = Response(
+            file_content,
+            mimetype=content_type,
+            headers={
+                'Content-Disposition': f'attachment; filename="{safe_filename}"',
+                'Content-Length': str(len(file_content)),
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         )
+        
+        return response
         
     except Exception as e:
         processing_time = round((time.time() - start_time) * 1000, 2)
