@@ -9,7 +9,15 @@ import tempfile
 import zipfile
 from io import BytesIO
 import logging
+import time
 from openpyxl import Workbook
+
+# Optional memory tracking
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 from openpyxl.styles import Font, PatternFill, Alignment
 from config.ybb_export_config import (
     EXPORT_TEMPLATES, STATUS_MAPPINGS, SYSTEM_CONFIG, 
@@ -102,9 +110,23 @@ class YBBExportService:
         
         return {"valid": True}
     
+    def _get_memory_usage(self):
+        """Get current memory usage in MB"""
+        if PSUTIL_AVAILABLE:
+            try:
+                process = psutil.Process()
+                memory_info = process.memory_info()
+                return round(memory_info.rss / (1024 * 1024), 2)  # RSS in MB
+            except Exception:
+                return None
+        return None
+    
     def _create_standard_export(self, export_id, export_request, template_config):
         """Create standard single-file export"""
         try:
+            start_time = time.time()
+            start_memory = self._get_memory_usage()
+            
             data = export_request["data"]
             export_type = export_request["export_type"]
             template_name = export_request.get("template", "standard")
@@ -123,6 +145,15 @@ class YBBExportService:
                     processed_data, export_type, template_name, export_request
                 )
             
+            # Calculate processing time and file size
+            processing_time = round((time.time() - start_time) * 1000, 2)  # in milliseconds
+            end_memory = self._get_memory_usage()
+            memory_used = round(end_memory - start_memory, 2) if start_memory and end_memory else None
+            peak_memory = end_memory if end_memory else None
+            
+            file_size = len(file_content)
+            file_size_mb = round(file_size / (1024 * 1024), 2)
+            
             # Store export info
             export_info = {
                 "export_id": export_id,
@@ -133,6 +164,11 @@ class YBBExportService:
                 "record_count": len(data),
                 "file_content": file_content,
                 "filename": filename,
+                "file_size": file_size,
+                "file_size_mb": file_size_mb,
+                "processing_time_ms": processing_time,
+                "memory_used_mb": memory_used,
+                "peak_memory_mb": peak_memory,
                 "created_at": datetime.now(),
                 "expires_at": datetime.now() + timedelta(days=SYSTEM_CONFIG["limits"]["file_retention_days"])
             }
@@ -145,7 +181,8 @@ class YBBExportService:
                 "data": {
                     "export_id": export_id,
                     "file_name": filename,
-                    "file_size": len(file_content),
+                    "file_size": file_size,
+                    "file_size_mb": file_size_mb,
                     "record_count": len(data),
                     "download_url": f"/api/ybb/export/{export_id}/download",
                     "expires_at": export_info["expires_at"].isoformat()
@@ -155,7 +192,14 @@ class YBBExportService:
                     "template": template_name,
                     "filters_applied": export_request.get("filters", {}),
                     "generated_at": export_info["created_at"].isoformat(),
-                    "processing_time": 0.5  # Placeholder
+                    "processing_time_ms": processing_time,
+                    "processing_time_seconds": round(processing_time / 1000, 3),
+                    "file_size_bytes": file_size,
+                    "file_size_mb": file_size_mb,
+                    "records_per_second": round(len(data) / (processing_time / 1000), 2) if processing_time > 0 else 0,
+                    "memory_used_mb": memory_used,
+                    "peak_memory_mb": peak_memory,
+                    "memory_efficiency_kb_per_record": round((memory_used * 1024) / len(data), 2) if memory_used and len(data) > 0 else None
                 }
             }
             
@@ -166,6 +210,8 @@ class YBBExportService:
     def _create_large_export(self, export_id, export_request, template_config):
         """Create large export with chunking"""
         try:
+            start_time = time.time()
+            
             data = export_request["data"]
             export_type = export_request["export_type"]
             template_name = export_request.get("template", "standard")
@@ -218,6 +264,11 @@ class YBBExportService:
             # Get ZIP file size
             zip_size = os.path.getsize(zip_path)
             
+            # Calculate processing metrics
+            processing_time = round((time.time() - start_time) * 1000, 2)  # in milliseconds
+            total_file_size = sum(f["file_size"] for f in files_info)
+            compression_ratio = round((total_file_size - zip_size) / total_file_size * 100, 1) if total_file_size > 0 else 0
+            
             # Store export info
             export_info = {
                 "export_id": export_id,
@@ -231,6 +282,9 @@ class YBBExportService:
                 "zip_path": zip_path,
                 "zip_filename": zip_filename,
                 "zip_size": zip_size,
+                "total_file_size": total_file_size,
+                "compression_ratio": compression_ratio,
+                "processing_time_ms": processing_time,
                 "temp_files": temp_files,
                 "created_at": datetime.now(),
                 "expires_at": datetime.now() + timedelta(days=SYSTEM_CONFIG["limits"]["file_retention_days"])
@@ -259,8 +313,11 @@ class YBBExportService:
                     "archive": {
                         "zip_file_name": zip_filename,
                         "zip_file_size": zip_size,
+                        "zip_file_size_mb": round(zip_size / (1024 * 1024), 2),
                         "download_url": f"/api/ybb/export/{export_id}/download/zip",
-                        "compression_ratio": self.file_manager.calculate_compression_ratio(files_info, zip_path)
+                        "compression_ratio_percent": compression_ratio,
+                        "total_uncompressed_size": total_file_size,
+                        "total_uncompressed_size_mb": round(total_file_size / (1024 * 1024), 2)
                     },
                     "expires_at": export_info["expires_at"].isoformat()
                 },
@@ -269,8 +326,17 @@ class YBBExportService:
                     "template": template_name,
                     "chunk_size": chunk_size,
                     "compression_used": "zip",
-                    "processing_time": 5.0,  # Placeholder
-                    "memory_peak": "200MB"  # Placeholder
+                    "processing_time_ms": processing_time,
+                    "processing_time_seconds": round(processing_time / 1000, 3),
+                    "records_per_second": round(record_count / (processing_time / 1000), 2) if processing_time > 0 else 0,
+                    "files_per_second": round(total_chunks / (processing_time / 1000), 2) if processing_time > 0 else 0,
+                    "compression_ratio_percent": compression_ratio,
+                    "total_file_size_bytes": total_file_size,
+                    "total_file_size_mb": round(total_file_size / (1024 * 1024), 2),
+                    "zip_file_size_bytes": zip_size,
+                    "zip_file_size_mb": round(zip_size / (1024 * 1024), 2),
+                    "space_saved_bytes": total_file_size - zip_size,
+                    "space_saved_mb": round((total_file_size - zip_size) / (1024 * 1024), 2)
                 }
             }
             
@@ -505,7 +571,7 @@ class YBBExportService:
         return cleaned_value
     
     def get_export_status(self, export_id):
-        """Get export status and download information"""
+        """Get export status and download information with detailed metrics"""
         if export_id not in self.exports_storage:
             return {"status": "error", "message": "Export not found"}
         
@@ -516,7 +582,8 @@ class YBBExportService:
             self._cleanup_export(export_id)
             return {"status": "error", "message": "Export has expired"}
         
-        return {
+        # Basic status info
+        status_info = {
             "status": export_info["status"],
             "export_id": export_id,
             "export_type": export_info["export_type"],
@@ -525,6 +592,33 @@ class YBBExportService:
             "created_at": export_info["created_at"].isoformat(),
             "expires_at": export_info["expires_at"].isoformat()
         }
+        
+        # Add file size information
+        if "file_size" in export_info:
+            status_info["file_size_bytes"] = export_info["file_size"]
+            status_info["file_size_mb"] = export_info.get("file_size_mb", round(export_info["file_size"] / (1024 * 1024), 2))
+        elif "zip_size" in export_info:
+            status_info["zip_file_size_bytes"] = export_info["zip_size"]
+            status_info["zip_file_size_mb"] = round(export_info["zip_size"] / (1024 * 1024), 2)
+            if "total_file_size" in export_info:
+                status_info["total_uncompressed_size_bytes"] = export_info["total_file_size"]
+                status_info["total_uncompressed_size_mb"] = round(export_info["total_file_size"] / (1024 * 1024), 2)
+                status_info["compression_ratio_percent"] = export_info.get("compression_ratio", 0)
+        
+        # Add processing time information
+        if "processing_time_ms" in export_info:
+            status_info["processing_time_ms"] = export_info["processing_time_ms"]
+            status_info["processing_time_seconds"] = round(export_info["processing_time_ms"] / 1000, 3)
+            if export_info["processing_time_ms"] > 0:
+                status_info["records_per_second"] = round(export_info["record_count"] / (export_info["processing_time_ms"] / 1000), 2)
+        
+        # Add multi-file specific information
+        if export_info.get("export_strategy") == "multi_file":
+            status_info["export_strategy"] = "multi_file"
+            status_info["total_chunks"] = export_info.get("total_chunks", 0)
+            status_info["files_info"] = export_info.get("files_info", [])
+        
+        return status_info
     
     def download_export(self, export_id, file_type="single"):
         """Download export file(s)"""
