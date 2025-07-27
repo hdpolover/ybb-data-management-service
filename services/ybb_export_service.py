@@ -279,7 +279,7 @@ class YBBExportService:
             raise
     
     def _transform_data(self, data, export_type, template_config):
-        """Transform raw data according to template configuration"""
+        """Transform raw data according to template configuration with sanitization"""
         if not data:
             return []
         
@@ -309,14 +309,14 @@ class YBBExportService:
                                     except ValueError:
                                         continue
                         except:
-                            value = str(value)
+                            value = str(value) if value else ""
                 
                 elif field in ["amount", "usd_amount"]:
                     if value and value != "N/A":
                         try:
                             value = f"{float(value):,.2f}"
                         except:
-                            value = str(value)
+                            value = str(value) if value else ""
                 
                 elif field in ["form_status", "status"]:
                     if export_type == "participants":
@@ -333,77 +333,176 @@ class YBBExportService:
                 elif field == "category":
                     value = get_status_label("category", value)
                 
+                # Ensure value is not None and convert to string
+                if value is None:
+                    value = ""
+                else:
+                    value = str(value)
+                
+                # Clean and sanitize the value for Excel compatibility
+                value = self._sanitize_excel_value(value)
+                
                 transformed_record[header] = value
             
             transformed_data.append(transformed_record)
         
         return transformed_data
     
+    def _sanitize_excel_value(self, value):
+        """
+        Sanitize a single value for Excel compatibility
+        
+        Args:
+            value: Raw value to sanitize
+            
+        Returns:
+            Sanitized value safe for Excel
+        """
+        if value is None:
+            return ""
+        
+        # Convert to string if not already
+        str_value = str(value)
+        
+        # Handle empty strings
+        if not str_value.strip():
+            return ""
+        
+        # Remove problematic characters for Excel
+        # Excel doesn't support characters below ASCII 32 except tab (9), newline (10), carriage return (13)
+        cleaned_value = ""
+        for char in str_value:
+            char_code = ord(char)
+            if char_code < 32:
+                if char_code in [9, 10, 13]:  # Tab, newline, carriage return
+                    cleaned_value += char
+                else:
+                    # Replace with space for other control characters
+                    cleaned_value += " "
+            elif char_code == 127:  # DEL character
+                cleaned_value += " "
+            else:
+                cleaned_value += char
+        
+        # Remove excessive whitespace
+        import re
+        cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+        
+        # Excel cell limit (32,767 characters)
+        if len(cleaned_value) > 32767:
+            cleaned_value = cleaned_value[:32764] + "..."
+        
+        return cleaned_value
+    
     def _create_excel_file(self, data, export_type, template_name, export_request, batch_info=None):
-        """Create Excel file from processed data"""
+        """Create Excel file from processed data with enhanced error handling"""
         if not data:
             raise ValueError("No data to export")
         
-        # Create DataFrame
-        df = pd.DataFrame(data)
-        
-        # Generate filename using file manager
-        filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8], batch_info)
-        filename = self.file_manager.sanitize_filename(filename)
-        
-        # Get sheet name using file manager
-        sheet_name = self.file_manager.get_sheet_name(export_request, batch_info)
-        
-        # Create Excel file in memory
-        output = BytesIO()
-        
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        try:
+            # Import the improved Excel exporter
+            from utils.excel_exporter import ExcelExporter
             
-            # Apply formatting
-            workbook = writer.book
-            worksheet = writer.sheets[sheet_name]
+            # Generate filename using file manager
+            filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8], batch_info)
+            filename = self.file_manager.sanitize_filename(filename)
             
-            # Header formatting
-            header_font = Font(bold=True, color="FFFFFF")
-            header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-            header_alignment = Alignment(horizontal="center", vertical="center")
+            # Get sheet name using file manager
+            sheet_name = self.file_manager.get_sheet_name(export_request, batch_info)
             
-            for col_num, column in enumerate(df.columns, 1):
-                cell = worksheet.cell(row=1, column=col_num)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = header_alignment
+            # Create Excel file using the improved exporter
+            excel_output = ExcelExporter.create_excel_file(
+                data=data,
+                filename=filename,
+                sheet_name=sheet_name,
+                format_options=None  # Use default formatting
+            )
             
-            # Auto-adjust column widths
-            for column in worksheet.columns:
-                max_length = 0
-                column = [cell for cell in column]
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = min(max_length + 2, 50)
-                worksheet.column_dimensions[column[0].column_letter].width = adjusted_width
-        
-        output.seek(0)
-        return output.getvalue(), filename
+            return excel_output.getvalue(), filename
+            
+        except Exception as e:
+            logger.error(f"Excel file creation failed: {str(e)}")
+            # Fallback to pandas-only approach with minimal formatting
+            try:
+                logger.info("Attempting fallback Excel creation method")
+                
+                # Create DataFrame and sanitize data
+                df = pd.DataFrame(data)
+                
+                # Basic data cleaning
+                for col in df.columns:
+                    df[col] = df[col].astype(str).apply(lambda x: self._sanitize_excel_value(x))
+                
+                # Generate filename
+                filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8], batch_info)
+                filename = self.file_manager.sanitize_filename(filename)
+                
+                # Get sheet name
+                sheet_name = self.file_manager.get_sheet_name(export_request, batch_info)
+                
+                # Create basic Excel file
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl', options={'remove_timezone': True}) as writer:
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+                output.seek(0)
+                logger.info("Fallback Excel creation successful")
+                return output.getvalue(), filename
+                
+            except Exception as fallback_error:
+                logger.error(f"Fallback Excel creation also failed: {str(fallback_error)}")
+                raise Exception(f"Excel file creation failed: {str(e)}. Fallback also failed: {str(fallback_error)}")
     
     def _create_csv_file(self, data, export_type, template_name, export_request):
-        """Create CSV file from processed data"""
-        df = pd.DataFrame(data)
+        """Create CSV file from processed data with enhanced error handling"""
+        try:
+            # Create DataFrame and sanitize data
+            df = pd.DataFrame(data)
+            
+            # Basic data cleaning for CSV
+            for col in df.columns:
+                df[col] = df[col].astype(str).apply(lambda x: self._sanitize_csv_value(x))
+            
+            # Generate filename using file manager
+            filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8])
+            filename = self.file_manager.sanitize_filename(filename.replace('.xlsx', '.csv'))
+            
+            output = BytesIO()
+            df.to_csv(output, index=False, encoding='utf-8')
+            output.seek(0)
+            
+            return output.getvalue(), filename
+            
+        except Exception as e:
+            logger.error(f"CSV file creation failed: {str(e)}")
+            raise Exception(f"CSV file creation failed: {str(e)}")
+    
+    def _sanitize_csv_value(self, value):
+        """
+        Sanitize a single value for CSV compatibility
         
-        # Generate filename using file manager
-        filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8])
-        filename = self.file_manager.sanitize_filename(filename.replace('.xlsx', '.csv'))
+        Args:
+            value: Raw value to sanitize
+            
+        Returns:
+            Sanitized value safe for CSV
+        """
+        if value is None:
+            return ""
         
-        output = BytesIO()
-        df.to_csv(output, index=False, encoding='utf-8')
-        output.seek(0)
+        # Convert to string if not already
+        str_value = str(value)
         
-        return output.getvalue(), filename
+        # Handle empty strings
+        if not str_value.strip():
+            return ""
+        
+        # Remove problematic characters for CSV
+        import re
+        cleaned_value = re.sub(r'[\r\n]+', ' ', str_value)  # Replace newlines with spaces
+        cleaned_value = cleaned_value.strip()
+        
+        return cleaned_value
     
     def get_export_status(self, export_id):
         """Get export status and download information"""
