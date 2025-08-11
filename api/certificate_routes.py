@@ -4,6 +4,7 @@ Handles certificate generation endpoints
 """
 from flask import Blueprint, request, jsonify, g
 from services.certificate_service import CertificateService
+from services.fallback_certificate_service import FallbackCertificateService
 import logging
 import time
 import json
@@ -14,14 +15,26 @@ logger = logging.getLogger('ybb_api.certificate_routes')
 # Create blueprint
 certificate_bp = Blueprint('certificates', __name__, url_prefix='/api/ybb/certificates')
 
-# Initialize service
+# Initialize services
 try:
     certificate_service = CertificateService()
-    service_available = True
+    if hasattr(certificate_service, 'dependencies_available') and not certificate_service.dependencies_available:
+        service_available = False
+        service_error = f"Missing dependencies: {', '.join(certificate_service.missing_dependencies)}"
+        logger.warning(f"Certificate service dependencies missing, will use fallback: {service_error}")
+    else:
+        service_available = True
+        service_error = None
+        logger.info("Certificate service initialized successfully")
 except Exception as e:
     logger.error(f"Certificate service initialization failed: {e}")
     certificate_service = None
     service_available = False
+    service_error = str(e)
+
+# Initialize fallback service
+fallback_service = FallbackCertificateService()
+logger.info("Fallback certificate service initialized")
 
 @certificate_bp.before_request
 def log_certificate_request():
@@ -56,18 +69,6 @@ def generate_certificate():
     try:
         logger.info(f"CERTIFICATE_GENERATION_START | ID: {request_id}")
         
-        # Check if service is available
-        if not service_available or certificate_service is None:
-            logger.error(f"CERTIFICATE_SERVICE_UNAVAILABLE | ID: {request_id}")
-            return jsonify({
-                'success': False,
-                'error': {
-                    'code': 'SERVICE_UNAVAILABLE',
-                    'message': 'Certificate generation service is not available. Please check server configuration.',
-                    'request_id': request_id
-                }
-            }), 503
-        
         # Get request data
         request_data = request.get_json()
         
@@ -94,8 +95,13 @@ def generate_certificate():
             f"Award: {award_title}"
         )
         
-        # Generate certificate
-        result = certificate_service.generate_certificate(request_data)
+        # Check if service is available - if not, use fallback
+        if not service_available or certificate_service is None:
+            logger.warning(f"CERTIFICATE_SERVICE_FALLBACK | ID: {request_id} | Using fallback service due to: {service_error}")
+            result = fallback_service.generate_certificate(request_data)
+        else:
+            # Use main certificate service
+            result = certificate_service.generate_certificate(request_data)
         
         processing_time = round((time.time() - start_time) * 1000, 2)
         
@@ -147,7 +153,9 @@ def certificate_health():
     try:
         health_status = {
             'service': 'Certificate Generation Service',
-            'status': 'healthy' if service_available else 'unavailable',
+            'status': 'healthy' if service_available else 'fallback',
+            'main_service_available': service_available,
+            'fallback_service_available': True,
             'timestamp': time.time(),
             'request_id': request_id
         }
@@ -158,12 +166,16 @@ def certificate_health():
                 'pillow': True,
                 'pypdf2': True
             }
+            health_status['message'] = 'Full PDF certificate generation available'
         else:
-            health_status['error'] = 'Service initialization failed'
+            health_status['error'] = service_error or 'Service initialization failed'
+            health_status['message'] = 'Using fallback text-based certificate generation'
+            if certificate_service and hasattr(certificate_service, 'missing_dependencies'):
+                health_status['missing_dependencies'] = certificate_service.missing_dependencies
         
         logger.info(f"CERTIFICATE_HEALTH_CHECK | ID: {request_id} | Status: {health_status['status']}")
         
-        return jsonify(health_status), 200 if service_available else 503
+        return jsonify(health_status), 200  # Always return 200 since fallback is available
         
     except Exception as e:
         logger.error(f"CERTIFICATE_HEALTH_CHECK_FAILED | ID: {request_id} | Error: {str(e)}")

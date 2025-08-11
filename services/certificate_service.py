@@ -45,12 +45,23 @@ class CertificateService:
         self.temp_dir = Path("temp/certificates")
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         
-        # Check required dependencies
-        self._check_dependencies()
+        # Check required dependencies and set availability
+        self.dependencies_available = True
+        self.missing_dependencies = []
+        
+        try:
+            self._check_dependencies()
+            logger.info("Certificate service initialized successfully with all dependencies")
+        except ImportError as e:
+            self.dependencies_available = False
+            logger.error(f"Certificate service initialization failed: {str(e)}")
         
         # Initialize font cache
         self._font_cache = {}
-        self._setup_fonts()
+        if self.dependencies_available:
+            self._setup_fonts()
+        else:
+            logger.warning("Skipping font setup due to missing dependencies")
     
     def _check_dependencies(self):
         """Check if required dependencies are available"""
@@ -58,22 +69,31 @@ class CertificateService:
         
         try:
             import reportlab
-        except ImportError:
+            logger.debug("reportlab dependency available")
+        except ImportError as e:
             missing_deps.append("reportlab")
+            logger.warning(f"reportlab not available: {e}")
         
         try:
             import PIL
-        except ImportError:
+            logger.debug("PIL (Pillow) dependency available")
+        except ImportError as e:
             missing_deps.append("Pillow")
+            logger.warning(f"PIL (Pillow) not available: {e}")
         
         try:
             import PyPDF2
-        except ImportError:
+            logger.debug("PyPDF2 dependency available")
+        except ImportError as e:
             missing_deps.append("PyPDF2")
+            logger.warning(f"PyPDF2 not available: {e}")
         
         if missing_deps:
+            self.missing_dependencies = missing_deps
             logger.error(f"Missing required dependencies for certificate generation: {', '.join(missing_deps)}")
             raise ImportError(f"Missing required dependencies: {', '.join(missing_deps)}")
+        
+        logger.info("All certificate generation dependencies are available")
     
     def _setup_fonts(self):
         """Setup available fonts for PDF generation"""
@@ -109,6 +129,17 @@ class CertificateService:
         Returns:
             Dictionary with certificate generation result
         """
+        # Check if dependencies are available
+        if not self.dependencies_available:
+            return {
+                'success': False,
+                'error': {
+                    'code': 'SERVICE_UNAVAILABLE',
+                    'message': f'Certificate generation service is not available. Missing dependencies: {", ".join(self.missing_dependencies)}',
+                    'missing_dependencies': self.missing_dependencies
+                }
+            }
+        
         try:
             request_id = str(uuid.uuid4())[:8]
             logger.info(f"CERTIFICATE_GENERATION_START | ID: {request_id}")

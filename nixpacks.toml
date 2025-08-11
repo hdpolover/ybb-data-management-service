@@ -1,5 +1,16 @@
 [phases.setup]
-nixPkgs = ["python3"]
+nixPkgs = [
+    "python3",
+    "pkg-config",
+    "freetype",
+    "libjpeg",
+    "zlib",
+    "libtiff",
+    "libpng",
+    "lcms2",
+    "libwebp",
+    "ghostscript"
+]
 
 [phases.install]
 cmds = [
