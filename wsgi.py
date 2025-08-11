@@ -8,13 +8,13 @@ import sys
 
 # Set production environment variables if not already set
 os.environ.setdefault('FLASK_ENV', 'production')
-os.environ.setdefault('FLASK_APP', 'app.py')
+os.environ.setdefault('FLASK_APP', 'app_complete.py')
 
 def create_application():
     """Create and return the Flask application"""
     try:
-        # Import the Flask app
-        from app import app
+        # Import the Flask app from app_complete.py for production
+        from app_complete import app
         
         print(f"✅ YBB Data Management Service loaded successfully")
         print(f"   Environment: {os.environ.get('FLASK_ENV', 'unknown')}")

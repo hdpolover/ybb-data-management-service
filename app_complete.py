@@ -46,6 +46,20 @@ except ImportError as e:
     print("📝 Using basic implementation")
     FULL_SERVICES_AVAILABLE = False
 
+# Try to import certificate service
+try:
+    from services.certificate_service import CertificateService
+    certificate_service = CertificateService()
+    CERTIFICATE_SERVICE_AVAILABLE = True
+    print("✅ Certificate service loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Warning: Certificate service not available: {str(e)}")
+    print("📝 Certificate endpoints will return service unavailable")
+    CERTIFICATE_SERVICE_AVAILABLE = False
+except Exception as e:
+    print(f"⚠️ Warning: Certificate service initialization failed: {str(e)}")
+    CERTIFICATE_SERVICE_AVAILABLE = False
+
 # Flask app initialization
 app = Flask(__name__)
 CORS(app, origins="*")
@@ -127,7 +141,8 @@ def health():
         "capabilities": {
             "pandas_available": PANDAS_AVAILABLE,
             "excel_available": EXCEL_AVAILABLE,
-            "full_services": FULL_SERVICES_AVAILABLE
+            "full_services": FULL_SERVICES_AVAILABLE,
+            "certificate_service": CERTIFICATE_SERVICE_AVAILABLE
         },
         "request_id": g.request_id
     })
@@ -472,6 +487,168 @@ def storage_info():
             "request_id": g.request_id
         }), 500
 
+# Certificate Generation Endpoints
+@app.route('/api/ybb/certificates/generate', methods=['POST'])
+def generate_certificate():
+    """Generate certificate from template and content blocks"""
+    try:
+        logger.info(f"CERTIFICATE_GENERATION_START | ID: {g.request_id}")
+        
+        # Check if certificate service is available
+        if not CERTIFICATE_SERVICE_AVAILABLE:
+            logger.error(f"CERTIFICATE_SERVICE_UNAVAILABLE | ID: {g.request_id}")
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'SERVICE_UNAVAILABLE',
+                    'message': 'Certificate generation service is not available. Required dependencies not installed.',
+                    'request_id': g.request_id
+                }
+            }), 503
+        
+        # Get request data
+        request_data = request.get_json()
+        
+        if not request_data:
+            logger.error(f"CERTIFICATE_NO_DATA | ID: {g.request_id}")
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'VALIDATION_ERROR',
+                    'message': 'No JSON data provided',
+                    'request_id': g.request_id
+                }
+            }), 400
+        
+        # Log certificate request details
+        participant_name = request_data.get('participant', {}).get('full_name', 'Unknown')
+        program_name = request_data.get('program', {}).get('name', 'Unknown')
+        award_title = request_data.get('award', {}).get('title', 'Unknown')
+        
+        logger.info(
+            f"CERTIFICATE_REQUEST_DETAILS | ID: {g.request_id} | "
+            f"Participant: {participant_name} | "
+            f"Program: {program_name} | "
+            f"Award: {award_title}"
+        )
+        
+        # Generate certificate
+        result = certificate_service.generate_certificate(request_data)
+        
+        if result['success']:
+            logger.info(
+                f"CERTIFICATE_GENERATION_SUCCESS | ID: {g.request_id} | "
+                f"Certificate ID: {result['data']['certificate_id']}"
+            )
+            return jsonify(result), 200
+        else:
+            logger.error(
+                f"CERTIFICATE_GENERATION_FAILED | ID: {g.request_id} | "
+                f"Error: {result.get('error', {}).get('message', 'Unknown error')}"
+            )
+            
+            # Return appropriate status code based on error type
+            error_code = result.get('error', {}).get('code', 'UNKNOWN_ERROR')
+            if error_code == 'VALIDATION_ERROR':
+                return jsonify(result), 400
+            elif error_code == 'TEMPLATE_NOT_FOUND':
+                return jsonify(result), 404
+            else:
+                return jsonify(result), 500
+        
+    except Exception as e:
+        logger.error(
+            f"CERTIFICATE_GENERATION_EXCEPTION | ID: {g.request_id} | "
+            f"Error: {str(e)}", exc_info=True
+        )
+        
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'GENERATION_FAILED',
+                'message': f'Certificate generation failed: {str(e)}',
+                'request_id': g.request_id
+            }
+        }), 500
+
+@app.route('/api/ybb/certificates/health', methods=['GET'])
+def certificate_health():
+    """Health check for certificate service"""
+    try:
+        health_status = {
+            'service': 'Certificate Generation Service',
+            'status': 'healthy' if CERTIFICATE_SERVICE_AVAILABLE else 'unavailable',
+            'timestamp': time.time(),
+            'request_id': g.request_id
+        }
+        
+        if CERTIFICATE_SERVICE_AVAILABLE:
+            health_status['dependencies'] = {
+                'reportlab': True,
+                'pillow': True,
+                'pypdf2': True
+            }
+        else:
+            health_status['error'] = 'Service initialization failed'
+        
+        logger.info(f"CERTIFICATE_HEALTH_CHECK | ID: {g.request_id} | Status: {health_status['status']}")
+        
+        return jsonify(health_status), 200 if CERTIFICATE_SERVICE_AVAILABLE else 503
+        
+    except Exception as e:
+        logger.error(f"CERTIFICATE_HEALTH_CHECK_FAILED | ID: {g.request_id} | Error: {str(e)}")
+        return jsonify({
+            'service': 'Certificate Generation Service',
+            'status': 'error',
+            'error': str(e),
+            'request_id': g.request_id
+        }), 500
+
+@app.route('/api/ybb/certificates/placeholders', methods=['GET'])
+def get_certificate_placeholders():
+    """Get list of available placeholders for certificate content"""
+    try:
+        placeholders = {
+            'participant': [
+                {'placeholder': '{{participant_name}}', 'description': 'Participant full name'},
+                {'placeholder': '{{participant_institution}}', 'description': 'Participant institution'},
+                {'placeholder': '{{participant_category}}', 'description': 'Participant category (fully_funded/self_funded)'},
+                {'placeholder': '{{participant_nationality}}', 'description': 'Participant nationality'},
+                {'placeholder': '{{participant_education_level}}', 'description': 'Education level'},
+                {'placeholder': '{{participant_major}}', 'description': 'Major/field of study'},
+                {'placeholder': '{{participant_occupation}}', 'description': 'Participant occupation'}
+            ],
+            'program': [
+                {'placeholder': '{{program_name}}', 'description': 'Program name'},
+                {'placeholder': '{{program_theme}}', 'description': 'Program theme'},
+                {'placeholder': '{{program_dates}}', 'description': 'Program date range (start to end)'}
+            ],
+            'award': [
+                {'placeholder': '{{award_title}}', 'description': 'Award title'},
+                {'placeholder': '{{award_description}}', 'description': 'Award description'},
+                {'placeholder': '{{award_type}}', 'description': 'Award type (winner/runner_up/mention/other)'}
+            ],
+            'general': [
+                {'placeholder': '{{date}}', 'description': 'Issue date or current date'}
+            ]
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': placeholders,
+            'message': 'Available certificate placeholders'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"CERTIFICATE_PLACEHOLDERS_EXCEPTION | Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'PLACEHOLDERS_FAILED',
+                'message': f'Failed to retrieve placeholders: {str(e)}'
+            }
+        }), 500
+
 # Error handlers
 @app.errorhandler(400)
 def bad_request(error):
@@ -507,5 +684,6 @@ if __name__ == '__main__':
     logger.info(f"   Pandas: {'✅ Available' if PANDAS_AVAILABLE else '❌ Fallback'}")
     logger.info(f"   Excel: {'✅ Available' if EXCEL_AVAILABLE else '❌ CSV Only'}")
     logger.info(f"   Services: {'✅ Full' if FULL_SERVICES_AVAILABLE else '❌ Basic'}")
+    logger.info(f"   Certificates: {'✅ Available' if CERTIFICATE_SERVICE_AVAILABLE else '❌ Unavailable'}")
     
     app.run(host=host, port=port, debug=False)
