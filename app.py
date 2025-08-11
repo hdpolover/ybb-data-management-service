@@ -24,6 +24,9 @@ from config import get_config
 # Import YBB routes
 from api.ybb_routes import ybb_bp
 
+# Import certificate routes
+from api.certificate_routes import certificate_bp
+
 def create_app():
     """Application factory pattern"""
     try:
@@ -46,6 +49,7 @@ def create_app():
         
         # Register blueprints
         app.register_blueprint(ybb_bp)
+        app.register_blueprint(certificate_bp)
         
         # Setup middleware
         setup_middleware(app)
@@ -236,7 +240,9 @@ def setup_basic_routes(app):
                 '/api/data/process',
                 '/api/ybb/export/participants',
                 '/api/ybb/export/payments',
-                '/api/ybb/export/ambassadors'
+                '/api/ybb/export/ambassadors',
+                '/api/ybb/certificates/generate',
+                '/api/ybb/certificates/health'
             ]
         })
     
