@@ -79,7 +79,15 @@ class YBBExportService:
             data = export_request["data"]
             record_count = len(data)
             
-            if should_use_chunked_processing(record_count, template_config):
+            # Check if chunking should be forced
+            force_chunking = export_request.get("force_chunking", False)
+            force_chunk_size = export_request.get("chunk_size")
+            
+            if force_chunking or should_use_chunked_processing(record_count, template_config):
+                # Override chunk size if specified
+                if force_chunk_size and force_chunk_size > 0:
+                    template_config = template_config.copy()
+                    template_config["recommended_chunk_size"] = force_chunk_size
                 return self._create_large_export(export_id, export_request, template_config)
             else:
                 return self._create_standard_export(export_id, export_request, template_config)
@@ -145,14 +153,16 @@ class YBBExportService:
                     processed_data, export_type, template_name, export_request
                 )
             
-            # Calculate processing time and file size
-            processing_time = round((time.time() - start_time) * 1000, 2)  # in milliseconds
+            # Calculate comprehensive processing metrics
+            total_processing_time = time.time() - start_time
+            processing_time_ms = round(total_processing_time * 1000, 2)
             end_memory = self._get_memory_usage()
             memory_used = round(end_memory - start_memory, 2) if start_memory and end_memory else None
             peak_memory = end_memory if end_memory else None
             
             file_size = len(file_content)
             file_size_mb = round(file_size / (1024 * 1024), 2)
+            records_per_second = round(len(data) / total_processing_time, 1) if total_processing_time > 0 else 0
             
             # Store export info
             export_info = {
@@ -166,7 +176,7 @@ class YBBExportService:
                 "filename": filename,
                 "file_size": file_size,
                 "file_size_mb": file_size_mb,
-                "processing_time_ms": processing_time,
+                "processing_time_ms": processing_time_ms,
                 "memory_used_mb": memory_used,
                 "peak_memory_mb": peak_memory,
                 "created_at": datetime.now(),
@@ -178,6 +188,7 @@ class YBBExportService:
             return {
                 "status": "success",
                 "message": "Export completed successfully",
+                "export_strategy": "single_file",
                 "data": {
                     "export_id": export_id,
                     "file_name": filename,
@@ -187,19 +198,26 @@ class YBBExportService:
                     "download_url": f"/api/ybb/export/{export_id}/download",
                     "expires_at": export_info["expires_at"].isoformat()
                 },
-                "metadata": {
-                    "export_type": export_type,
-                    "template": template_name,
-                    "filters_applied": export_request.get("filters", {}),
-                    "generated_at": export_info["created_at"].isoformat(),
-                    "processing_time_ms": processing_time,
-                    "processing_time_seconds": round(processing_time / 1000, 3),
-                    "file_size_bytes": file_size,
-                    "file_size_mb": file_size_mb,
-                    "records_per_second": round(len(data) / (processing_time / 1000), 2) if processing_time > 0 else 0,
+                "performance_metrics": {
+                    "total_processing_time_seconds": round(total_processing_time, 2),
+                    "processing_time_ms": processing_time_ms,
+                    "records_per_second": records_per_second,
                     "memory_used_mb": memory_used,
                     "peak_memory_mb": peak_memory,
-                    "memory_efficiency_kb_per_record": round((memory_used * 1024) / len(data), 2) if memory_used and len(data) > 0 else None
+                    "efficiency_metrics": {
+                        "kb_per_record": round(file_size / len(data) / 1024, 2) if len(data) > 0 else 0,
+                        "processing_ms_per_record": round(processing_time_ms / len(data), 2) if len(data) > 0 else 0,
+                        "memory_efficiency_kb_per_record": round((memory_used * 1024) / len(data), 2) if memory_used and len(data) > 0 else None
+                    }
+                },
+                "system_info": {
+                    "export_type": export_type,
+                    "template": template_name,
+                    "format": format_type,
+                    "filters_applied": export_request.get("filters", {}),
+                    "generated_at": export_info["created_at"].isoformat(),
+                    "compression_used": "none",
+                    "temp_files_cleanup_scheduled": False
                 }
             }
             
@@ -208,14 +226,22 @@ class YBBExportService:
             raise
     
     def _create_large_export(self, export_id, export_request, template_config):
-        """Create large export with chunking"""
+        """Create large export with chunking and performance tracking"""
         try:
+            # Performance tracking
             start_time = time.time()
+            chunk_start_times = []
+            chunk_processing_times = []
+            chunk_sizes_bytes = []
+            memory_peaks = []
             
             data = export_request["data"]
             export_type = export_request["export_type"]
             template_name = export_request.get("template", "standard")
             record_count = len(data)
+            
+            # Track data preparation time
+            prep_start = time.time()
             
             # Calculate chunk size
             chunk_size = get_chunk_size(export_type, template_name, record_count)
@@ -224,11 +250,28 @@ class YBBExportService:
             chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
             total_chunks = len(chunks)
             
+            prep_time = time.time() - prep_start
+            logger.info(f"Data preparation completed in {prep_time:.2f}s for {record_count} records")
+            
             # Create individual files
             files_info = []
             temp_files = []
+            total_uncompressed_size = 0
+            
+            logger.info(f"Starting chunk processing: {total_chunks} chunks of {chunk_size} records each")
             
             for i, chunk in enumerate(chunks):
+                chunk_start = time.time()
+                chunk_start_times.append(chunk_start)
+                
+                # Track memory before processing
+                try:
+                    import psutil
+                    process = psutil.Process()
+                    memory_before = process.memory_info().rss / 1024 / 1024  # MB
+                except ImportError:
+                    memory_before = None
+                
                 processed_chunk = self._transform_data(chunk, export_type, template_config)
                 
                 # Create chunk file
@@ -236,6 +279,24 @@ class YBBExportService:
                     processed_chunk, export_type, template_name, export_request, 
                     batch_info={"number": i + 1, "total": total_chunks}
                 )
+                
+                # Track processing time for this chunk
+                chunk_time = time.time() - chunk_start
+                chunk_processing_times.append(chunk_time)
+                
+                # Track file size
+                chunk_size_bytes = len(file_content)
+                chunk_sizes_bytes.append(chunk_size_bytes)
+                total_uncompressed_size += chunk_size_bytes
+                
+                # Track memory after processing
+                try:
+                    if memory_before:
+                        memory_after = process.memory_info().rss / 1024 / 1024  # MB
+                        memory_peak = memory_after - memory_before
+                        memory_peaks.append(memory_peak)
+                except:
+                    memory_peaks.append(0)
                 
                 # Save to temp file
                 temp_file_path = os.path.join(self.temp_dir, f"{export_id}_chunk_{i+1}.xlsx")
@@ -248,26 +309,41 @@ class YBBExportService:
                     "batch_number": i + 1,
                     "file_name": chunk_filename,
                     "file_path": temp_file_path,
-                    "file_size": len(file_content),
+                    "file_size": chunk_size_bytes,
                     "record_count": len(chunk),
-                    "record_range": f"{i * chunk_size + 1}-{min((i + 1) * chunk_size, record_count)}"
+                    "record_range": f"{i * chunk_size + 1}-{min((i + 1) * chunk_size, record_count)}",
+                    "processing_time_seconds": round(chunk_time, 2),
+                    "records_per_second": round(len(chunk) / chunk_time, 1) if chunk_time > 0 else 0
                 })
+                
+                logger.info(f"Chunk {i+1}/{total_chunks} completed in {chunk_time:.2f}s "
+                           f"({len(chunk)} records, {chunk_size_bytes/1024:.1f}KB)")
+            
+            # Compression phase tracking
+            compression_start = time.time()
+            logger.info("Starting ZIP compression...")
             
             # Create ZIP archive
             zip_filename = self.file_manager.generate_zip_filename(export_request, export_id)
             zip_path = os.path.join(self.temp_dir, f"{export_id}_complete.zip")
             
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
                 for file_info in files_info:
                     zipf.write(file_info["file_path"], file_info["file_name"])
             
-            # Get ZIP file size
+            # Get ZIP file size and calculate compression
             zip_size = os.path.getsize(zip_path)
+            compression_time = time.time() - compression_start
+            compression_ratio = ((total_uncompressed_size - zip_size) / total_uncompressed_size * 100) if total_uncompressed_size > 0 else 0
             
-            # Calculate processing metrics
-            processing_time = round((time.time() - start_time) * 1000, 2)  # in milliseconds
-            total_file_size = sum(f["file_size"] for f in files_info)
-            compression_ratio = round((total_file_size - zip_size) / total_file_size * 100, 1) if total_file_size > 0 else 0
+            logger.info(f"ZIP compression completed in {compression_time:.2f}s, "
+                       f"ratio: {compression_ratio:.1f}%, final size: {zip_size/1024:.1f}KB")
+            
+            # Calculate comprehensive performance metrics
+            total_processing_time = time.time() - start_time
+            avg_chunk_time = sum(chunk_processing_times) / len(chunk_processing_times) if chunk_processing_times else 0
+            total_records_per_second = record_count / total_processing_time if total_processing_time > 0 else 0
+            avg_memory_peak = sum(memory_peaks) / len(memory_peaks) if memory_peaks else 0
             
             # Store export info
             export_info = {
@@ -282,9 +358,9 @@ class YBBExportService:
                 "zip_path": zip_path,
                 "zip_filename": zip_filename,
                 "zip_size": zip_size,
-                "total_file_size": total_file_size,
+                "total_file_size": total_uncompressed_size,
                 "compression_ratio": compression_ratio,
-                "processing_time_ms": processing_time,
+                "processing_time_ms": round(total_processing_time * 1000, 2),
                 "temp_files": temp_files,
                 "created_at": datetime.now(),
                 "expires_at": datetime.now() + timedelta(days=SYSTEM_CONFIG["limits"]["file_retention_days"])
@@ -307,37 +383,40 @@ class YBBExportService:
                             "file_size": f["file_size"],
                             "record_count": f["record_count"],
                             "record_range": f["record_range"],
-                            "download_url": f"/api/ybb/export/{export_id}/download/batch/{f['batch_number']}"
-                        } for f in files_info
+                            "processing_time_seconds": f["processing_time_seconds"],
+                            "records_per_second": f["records_per_second"]
+                        }
+                        for f in files_info
                     ],
-                    "archive": {
-                        "zip_file_name": zip_filename,
-                        "zip_file_size": zip_size,
-                        "zip_file_size_mb": round(zip_size / (1024 * 1024), 2),
-                        "download_url": f"/api/ybb/export/{export_id}/download/zip",
-                        "compression_ratio_percent": compression_ratio,
-                        "total_uncompressed_size": total_file_size,
-                        "total_uncompressed_size_mb": round(total_file_size / (1024 * 1024), 2)
+                    "archive_info": {
+                        "filename": zip_filename,
+                        "compressed_size": zip_size,
+                        "uncompressed_size": total_uncompressed_size,
+                        "compression_ratio": f"{compression_ratio:.1f}%",
+                        "compression_time_seconds": round(compression_time, 2)
                     },
-                    "expires_at": export_info["expires_at"].isoformat()
+                    "performance_metrics": {
+                        "total_processing_time_seconds": round(total_processing_time, 2),
+                        "data_preparation_time_seconds": round(prep_time, 2),
+                        "average_chunk_processing_time_seconds": round(avg_chunk_time, 2),
+                        "total_records_per_second": round(total_records_per_second, 1),
+                        "chunk_processing_times": [round(t, 2) for t in chunk_processing_times],
+                        "average_memory_peak_mb": round(avg_memory_peak, 1) if avg_memory_peak > 0 else None,
+                        "efficiency_metrics": {
+                            "kb_per_record_uncompressed": round(total_uncompressed_size / record_count / 1024, 2) if record_count > 0 else 0,
+                            "kb_per_record_compressed": round(zip_size / record_count / 1024, 2) if record_count > 0 else 0,
+                            "processing_ms_per_record": round((total_processing_time * 1000) / record_count, 2) if record_count > 0 else 0,
+                            "compression_efficiency": f"{compression_ratio:.1f}%"
+                        }
+                    },
+                    "system_info": {
+                        "chunk_size": chunk_size,
+                        "compression_level": 6,
+                        "temp_files_cleanup_scheduled": True,
+                        "export_expires_at": export_info["expires_at"].isoformat()
+                    }
                 },
-                "metadata": {
-                    "export_type": export_type,
-                    "template": template_name,
-                    "chunk_size": chunk_size,
-                    "compression_used": "zip",
-                    "processing_time_ms": processing_time,
-                    "processing_time_seconds": round(processing_time / 1000, 3),
-                    "records_per_second": round(record_count / (processing_time / 1000), 2) if processing_time > 0 else 0,
-                    "files_per_second": round(total_chunks / (processing_time / 1000), 2) if processing_time > 0 else 0,
-                    "compression_ratio_percent": compression_ratio,
-                    "total_file_size_bytes": total_file_size,
-                    "total_file_size_mb": round(total_file_size / (1024 * 1024), 2),
-                    "zip_file_size_bytes": zip_size,
-                    "zip_file_size_mb": round(zip_size / (1024 * 1024), 2),
-                    "space_saved_bytes": total_file_size - zip_size,
-                    "space_saved_mb": round((total_file_size - zip_size) / (1024 * 1024), 2)
-                }
+                "download_url": f"/api/ybb/export/{export_id}/download"
             }
             
         except Exception as e:
