@@ -485,7 +485,7 @@ class YBBExportService:
                     value = str(value)
                 
                 # Clean and sanitize the value for Excel compatibility
-                value = self._sanitize_excel_value(value)
+                value = self._sanitize_excel_value_enhanced(value)
                 
                 transformed_record[header] = value
             
@@ -493,7 +493,63 @@ class YBBExportService:
         
         return transformed_data
     
-    def _sanitize_excel_value(self, value):
+    def _sanitize_excel_value_enhanced(self, value):
+        """Enhanced Excel value sanitization"""
+        if value is None or pd.isna(value):
+            return ""
+        
+        # Convert to string
+        str_value = str(value)
+        
+        # Handle empty strings
+        if not str_value.strip():
+            return ""
+        
+        # Handle Excel formula injection (security)
+        if str_value.strip().startswith(('=', '+', '-', '@', '\t', '\r', '\n')):
+            str_value = "'" + str_value  # Prefix with apostrophe
+        
+        # Remove control characters except allowed ones
+        cleaned_value = ""
+        for char in str_value:
+            char_code = ord(char)
+            if char_code < 32:
+                if char_code in [9, 10, 13]:  # Tab, LF, CR
+                    cleaned_value += char
+                else:
+                    cleaned_value += " "  # Replace with space
+            elif char_code == 127:  # DEL character
+                cleaned_value += " "
+            elif char_code > 1114111:  # Beyond Unicode range
+                cleaned_value += " "
+            else:
+                cleaned_value += char
+        
+        # Excel cell limit (32,767 characters)
+        if len(cleaned_value) > 32767:
+            cleaned_value = cleaned_value[:32764] + "..."
+        
+        # Normalize whitespace
+        import re
+        cleaned_value = re.sub(r'\s+', ' ', cleaned_value).strip()
+        
+        return cleaned_value if cleaned_value else ""
+    
+    def _sanitize_sheet_name(self, sheet_name):
+        """Sanitize Excel sheet name"""
+        if not sheet_name:
+            return "Data"
+        
+        # Remove invalid characters for Excel sheet names
+        import re
+        sanitized = re.sub(r'[\\/*\[\]:?]', '_', str(sheet_name))
+        
+        # Limit to Excel's 31 character limit
+        if len(sanitized) > 31:
+            sanitized = sanitized[:31]
+        
+        # Ensure not empty after sanitization
+        return sanitized if sanitized.strip() else "Data"
         """
         Sanitize a single value for Excel compatibility
         
@@ -540,63 +596,119 @@ class YBBExportService:
         return cleaned_value
     
     def _create_excel_file(self, data, export_type, template_name, export_request, batch_info=None):
-        """Create Excel file from processed data with enhanced error handling"""
+        """Create Excel file from processed data with robust error handling and validation"""
         if not data:
             raise ValueError("No data to export")
         
         try:
-            # Import the improved Excel exporter
-            from utils.excel_exporter import ExcelExporter
+            # Import the robust Excel service
+            from robust_excel_service import RobustExcelService
             
             # Generate filename using file manager
-            filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8], batch_info)
-            filename = self.file_manager.sanitize_filename(filename)
+            base_filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8], batch_info)
+            base_filename = self.file_manager.sanitize_filename(base_filename)
             
             # Get sheet name using file manager
             sheet_name = self.file_manager.get_sheet_name(export_request, batch_info)
             
-            # Create Excel file using the improved exporter
-            excel_output = ExcelExporter.create_excel_file(
+            # Create Excel file using robust service with validation
+            file_content, validated_filename, validation_info = RobustExcelService.create_excel_file_robust(
                 data=data,
-                filename=filename,
-                sheet_name=sheet_name,
-                format_options=None  # Use default formatting
+                filename=base_filename,
+                sheet_name=sheet_name
             )
             
-            return excel_output.getvalue(), filename
+            if not validation_info['valid']:
+                raise Exception(f"Excel validation failed: {validation_info['errors']}")
+            
+            logger.info(f"Excel file created successfully: {validated_filename} ({len(file_content)} bytes)")
+            logger.debug(f"Excel validation: {validation_info}")
+            
+            return file_content, validated_filename
             
         except Exception as e:
-            logger.error(f"Excel file creation failed: {str(e)}")
-            # Fallback to pandas-only approach with minimal formatting
+            logger.error(f"Robust Excel file creation failed: {str(e)}")
+            
+            # Enhanced fallback with comprehensive error handling
             try:
-                logger.info("Attempting fallback Excel creation method")
+                logger.info("Attempting enhanced fallback Excel creation")
                 
-                # Create DataFrame and sanitize data
+                # Create DataFrame and thoroughly sanitize data
+                import pandas as pd
                 df = pd.DataFrame(data)
                 
-                # Basic data cleaning
+                # Comprehensive data cleaning
                 for col in df.columns:
-                    df[col] = df[col].astype(str).apply(lambda x: self._sanitize_excel_value(x))
+                    # Convert to string and sanitize
+                    df[col] = df[col].astype(str).apply(lambda x: self._sanitize_excel_value_enhanced(x))
                 
-                # Generate filename
+                # Generate and fix filename
                 filename = self.file_manager.generate_filename(export_request, str(uuid.uuid4())[:8], batch_info)
                 filename = self.file_manager.sanitize_filename(filename)
                 
-                # Get sheet name
+                # Ensure .xlsx extension
+                if not filename.lower().endswith('.xlsx'):
+                    filename = f"{os.path.splitext(filename)[0]}.xlsx"
+                
+                # Get sheet name and fix it
                 sheet_name = self.file_manager.get_sheet_name(export_request, batch_info)
+                sheet_name = self._sanitize_sheet_name(sheet_name)
                 
-                # Create basic Excel file
+                # Create Excel file with enhanced options
                 output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl', options={'remove_timezone': True}) as writer:
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-                
-                output.seek(0)
-                logger.info("Fallback Excel creation successful")
-                return output.getvalue(), filename
+                try:
+                    # Try basic pandas approach first
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    
+                    output.seek(0)
+                    content = output.getvalue()
+                    
+                    # Validate the fallback file
+                    if len(content) < 100 or not content.startswith(b'PK\x03\x04'):
+                        raise Exception("Fallback created invalid Excel file")
+                    
+                    logger.info(f"Enhanced fallback Excel creation successful: {filename} ({len(content)} bytes)")
+                    return content, filename
+                    
+                except Exception as pandas_error:
+                    logger.error(f"Pandas fallback failed: {pandas_error}")
+                    
+                    # Ultimate fallback: Manual openpyxl
+                    logger.info("Attempting manual openpyxl fallback")
+                    
+                    from openpyxl import Workbook
+                    wb = Workbook()
+                    ws = wb.active
+                    ws.title = sheet_name[:31]  # Excel limit
+                    
+                    # Write headers
+                    headers = list(df.columns)
+                    for col_num, header in enumerate(headers, 1):
+                        ws.cell(row=1, column=col_num, value=str(header)[:255])  # Excel cell limit
+                    
+                    # Write data with strict limits
+                    for row_num, (_, row_data) in enumerate(df.iterrows(), 2):
+                        for col_num, value in enumerate(row_data, 1):
+                            cell_value = str(value)[:32767] if value else ""  # Excel cell limit
+                            ws.cell(row=row_num, column=col_num, value=cell_value)
+                    
+                    # Save to bytes
+                    manual_output = BytesIO()
+                    wb.save(manual_output)
+                    manual_output.seek(0)
+                    manual_content = manual_output.getvalue()
+                    
+                    # Final validation
+                    if len(manual_content) < 100 or not manual_content.startswith(b'PK\x03\x04'):
+                        raise Exception("Manual openpyxl fallback created invalid file")
+                    
+                    logger.info(f"Manual openpyxl fallback successful: {filename} ({len(manual_content)} bytes)")
+                    return manual_content, filename
                 
             except Exception as fallback_error:
-                logger.error(f"Fallback Excel creation also failed: {str(fallback_error)}")
-                raise Exception(f"Excel file creation failed: {str(e)}. Fallback also failed: {str(fallback_error)}")
+                logger.error(f"All Excel creation fallbacks failed: {str(fallback_error)}")
+                raise Exception(f"Excel file creation completely failed. Original error: {str(e)}. Fallback error: {str(fallback_error)}")
     
     def _create_csv_file(self, data, export_type, template_name, export_request):
         """Create CSV file from processed data with enhanced error handling"""

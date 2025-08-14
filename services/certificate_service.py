@@ -569,7 +569,7 @@ class CertificateService:
             logger.error(f"Image template processing failed: {str(e)}")
             return {'success': False, 'error': str(e)}
     
-    def _add_content_block_to_canvas(self, canvas_obj: canvas.Canvas, block: Dict, page_height: float):
+    def _add_content_block_to_canvas(self, canvas_obj, block: Dict, page_height: float):
         """Add a content block to the PDF canvas"""
         try:
             # Extract block properties
@@ -626,7 +626,7 @@ class CertificateService:
         
         return base_font
     
-    def _parse_color(self, color_str: str) -> Color:
+    def _parse_color(self, color_str: str):
         """Parse color string to ReportLab Color object"""
         try:
             if color_str.startswith('#'):
