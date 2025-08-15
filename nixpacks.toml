@@ -5,7 +5,7 @@ nixPkgs = [
     "glibc",
     "libgcc",
     "stdenv.cc.cc.lib",
-    "gcc-unwrapped.lib",
+    "gcc.cc.lib",
     "pkg-config",
     "freetype",
     "libjpeg",
