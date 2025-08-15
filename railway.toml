@@ -2,13 +2,13 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = ". /opt/venv/bin/activate && python app_complete.py"
+startCommand = ". /opt/venv/bin/activate && python app.py"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 
 [env]
 PYTHONPATH = "/app"
-FLASK_APP = "app_complete.py"
+FLASK_APP = "app.py"
 FLASK_ENV = "production"
-# Updated: 2025-07-26 - Complete API with graceful fallbacks for dependencies
+# Updated: 2025-08-15 - Fixed Railway deployment to use app.py
