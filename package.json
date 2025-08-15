@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "YBB Data Management Flask API Service",
   "scripts": {
-    "start": "python railway_numpy_fix.py",
+    "start": "python railway_ultimate_fix.py",
     "dev": "python app.py"
   },
   "engines": {

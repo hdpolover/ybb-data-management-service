@@ -1,4 +1,8 @@
-[build]
+[bu[deploy]
+startCommand = ". /opt/venv/bin/activate && python railway_ultimate_fix.py"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
 builder = "nixpacks"
 
 [deploy]

@@ -12,4 +12,5 @@ export FLASK_APP=app.py
 export PYTHONPATH=/app
 
 # Start the complete application with numpy fixes
-exec python railway_numpy_fix.py
+# Start the complete application with ultimate numpy fix
+exec python railway_ultimate_fix.py
