@@ -2,13 +2,14 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = ". /opt/venv/bin/activate && python railway_minimal_app.py"
+startCommand = ". /opt/venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --preload --log-level info --access-logfile - --error-logfile -"
 healthcheckPath = "/health"
-healthcheckTimeout = 60
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 
 [env]
 PYTHONPATH = "/app"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
-# Updated: 2025-08-15 - Fixed Railway deployment to use app.py
+PIP_CACHE_DIR = "/tmp/pip-cache"
+# Updated: 2025-08-15 - Use complete app with proper dependency installation
