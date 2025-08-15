@@ -5,7 +5,7 @@ nixPkgs = [
     "glibc",
     "libgcc",
     "stdenv.cc.cc.lib",
-    "glibcLocales",
+    "libcxx",
     "pkg-config",
     "freetype",
     "libjpeg",
@@ -21,11 +21,14 @@ nixPkgs = [
 cmds = [
     "python -m venv --copies /opt/venv",
     ". /opt/venv/bin/activate && pip install --upgrade pip setuptools wheel",
-    ". /opt/venv/bin/activate && export LD_LIBRARY_PATH=/nix/store/*-gcc*/lib:$LD_LIBRARY_PATH && pip install --only-binary=all --no-cache-dir -r requirements.txt"
+    ". /opt/venv/bin/activate && ls -la /nix/store/*gcc*/lib/ || echo 'No GCC lib found'",
+    ". /opt/venv/bin/activate && ls -la /nix/store/*glibc*/lib/ || echo 'No glibc lib found'", 
+    ". /opt/venv/bin/activate && find /nix/store -name 'libstdc++*' 2>/dev/null || echo 'No libstdc++ found'",
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt"
 ]
 
 [start]
-cmd = ". /opt/venv/bin/activate && export LD_LIBRARY_PATH=/nix/store/*-gcc*/lib:/nix/store/*-glibc*/lib:$LD_LIBRARY_PATH && python railway_ultimate_fix.py"
+cmd = ". /opt/venv/bin/activate && echo 'Checking available C++ libraries:' && find /nix/store -name '*libstdc++*' 2>/dev/null | head -10 && python railway_ultimate_fix.py"
 
 [variables]
 PYTHONPATH = "/app"
