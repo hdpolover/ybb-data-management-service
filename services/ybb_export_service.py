@@ -1,7 +1,6 @@
 """
 YBB Export Service - Handles YBB-specific data export logic
 """
-import pandas as pd
 import uuid
 from datetime import datetime, timedelta
 import os
@@ -11,6 +10,19 @@ from io import BytesIO
 import logging
 import time
 from openpyxl import Workbook
+
+# Try to import pandas gracefully
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️  pandas not available in ybb_export_service: {e}")
+    PANDAS_AVAILABLE = False
+    # Create a dummy pandas for graceful degradation
+    class DummyPandas:
+        def DataFrame(self, *args, **kwargs):
+            raise ImportError("pandas is not available - C++ libraries missing")
+    pd = DummyPandas()
 
 # Optional memory tracking
 try:

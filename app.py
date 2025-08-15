@@ -4,7 +4,6 @@ Production-ready version with proper error handling
 """
 from flask import Flask, request, jsonify, send_file, g
 from flask_cors import CORS
-import pandas as pd
 import json
 import os
 from datetime import datetime
@@ -17,6 +16,20 @@ import shutil
 import time
 import sys
 from logging.handlers import RotatingFileHandler
+
+# Try to import pandas, but don't fail if it's not available
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+    print("✅ pandas imported successfully in app.py")
+except ImportError as e:
+    print(f"⚠️  pandas not available in app.py: {e}")
+    PANDAS_AVAILABLE = False
+    # Create a dummy pandas object for graceful degradation
+    class DummyPandas:
+        def DataFrame(self, *args, **kwargs):
+            raise ImportError("pandas is not available - install required C++ libraries")
+    pd = DummyPandas()
 
 # Import configuration
 from config import get_config
