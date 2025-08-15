@@ -25,10 +25,30 @@ try:
 except ImportError as e:
     print(f"⚠️  pandas not available in app.py: {e}")
     PANDAS_AVAILABLE = False
-    # Create a dummy pandas object for graceful degradation
-    class DummyPandas:
-        def DataFrame(self, *args, **kwargs):
+    
+    # Create a comprehensive dummy pandas object for graceful degradation
+    class DummyDataFrame:
+        def __init__(self, *args, **kwargs):
             raise ImportError("pandas is not available - install required C++ libraries")
+        
+        def __getattr__(self, name):
+            raise ImportError(f"pandas is not available - cannot access '{name}' method")
+    
+    class DummyPandas:
+        def __init__(self):
+            self.DataFrame = DummyDataFrame
+        
+        def __getattr__(self, name):
+            if name in ['isna', 'isnull', 'notna', 'notnull', 'read_excel', 'read_csv', 'concat', 'merge']:
+                def pandas_not_available(*args, **kwargs):
+                    raise ImportError(f"pandas is not available - cannot use pandas.{name}()")
+                return pandas_not_available
+            raise ImportError(f"pandas is not available - cannot access pandas.{name}")
+        
+        @property 
+        def __version__(self):
+            return "pandas-not-available"
+    
     pd = DummyPandas()
 
 # Import configuration

@@ -18,10 +18,40 @@ try:
 except ImportError as e:
     print(f"⚠️  pandas not available in ybb_export_service: {e}")
     PANDAS_AVAILABLE = False
-    # Create a dummy pandas for graceful degradation
-    class DummyPandas:
-        def DataFrame(self, *args, **kwargs):
+    
+    # Create a comprehensive dummy pandas for graceful degradation
+    class DummyDataFrame:
+        def __init__(self, *args, **kwargs):
             raise ImportError("pandas is not available - C++ libraries missing")
+        
+        def __getattr__(self, name):
+            raise ImportError(f"pandas DataFrame not available - cannot access '{name}' method")
+    
+    class DummySeries:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("pandas Series not available - C++ libraries missing")
+        
+        def __getattr__(self, name):
+            raise ImportError(f"pandas Series not available - cannot access '{name}' method")
+    
+    class DummyPandas:
+        def __init__(self):
+            self.DataFrame = DummyDataFrame
+            self.Series = DummySeries
+        
+        def __getattr__(self, name):
+            # Handle common pandas functions that might be called
+            if name in ['isna', 'isnull', 'notna', 'notnull', 'read_excel', 'read_csv', 
+                       'concat', 'merge', 'to_datetime', 'cut', 'qcut', 'pivot_table']:
+                def pandas_not_available(*args, **kwargs):
+                    raise ImportError(f"pandas is not available - cannot use pandas.{name}()")
+                return pandas_not_available
+            raise ImportError(f"pandas is not available - cannot access pandas.{name}")
+        
+        @property 
+        def __version__(self):
+            return "pandas-not-available"
+    
     pd = DummyPandas()
 
 # Optional memory tracking
@@ -69,6 +99,14 @@ class YBBExportService:
     def create_export(self, export_request):
         """Main export creation method"""
         try:
+            # Check if pandas is available for data processing
+            if not PANDAS_AVAILABLE:
+                return {
+                    "status": "error", 
+                    "message": "pandas is not available - Excel export functionality requires pandas with C++ libraries. Service is running in limited mode.",
+                    "error_code": "PANDAS_UNAVAILABLE"
+                }
+            
             # Periodic cleanup based on time interval (not before every export)
             if self.auto_cleanup_enabled and self._should_run_cleanup():
                 self._cleanup_old_exports()
@@ -507,8 +545,18 @@ class YBBExportService:
     
     def _sanitize_excel_value_enhanced(self, value):
         """Enhanced Excel value sanitization"""
-        if value is None or pd.isna(value):
+        # Handle None values
+        if value is None:
             return ""
+        
+        # Handle pandas NaN values if pandas is available
+        if PANDAS_AVAILABLE:
+            try:
+                if pd.isna(value):
+                    return ""
+            except (ImportError, AttributeError):
+                # Fallback if pd.isna fails
+                pass
         
         # Convert to string
         str_value = str(value)
