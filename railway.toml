@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = ". /opt/venv/bin/activate && python railway_simple.py"
+startCommand = ". /opt/venv/bin/activate && python railway_numpy_fix.py"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
@@ -12,4 +12,8 @@ PYTHONPATH = "/app"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
 PIP_CACHE_DIR = "/tmp/pip-cache"
+# Numpy-specific environment variables
+NPY_NUM_BUILD_JOBS = "1"
+OPENBLAS_NUM_THREADS = "1"
+NUMPY_DISABLE_THREADING = "1"
 # Updated: 2025-08-15 - Use complete app with proper dependency installation

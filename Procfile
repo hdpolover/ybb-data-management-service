@@ -1,2 +1,2 @@
-web: python railway_simple.py
+web: python railway_numpy_fix.py
 release: echo "Application ready for deployment"
