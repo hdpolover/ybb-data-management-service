@@ -2,9 +2,9 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = ". /opt/venv/bin/activate && python app.py"
+startCommand = ". /opt/venv/bin/activate && python railway_start.py"
 healthcheckPath = "/health"
-healthcheckTimeout = 100
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 
 [env]

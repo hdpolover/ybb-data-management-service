@@ -18,6 +18,7 @@ def create_application():
         
         print(f"SUCCESS: YBB Data Management Service loaded successfully")
         print(f"   Environment: {os.environ.get('FLASK_ENV', 'unknown')}")
+        print(f"   Port: {os.environ.get('PORT', '5000')}")
         print(f"   Debug mode: {app.config.get('DEBUG', False)}")
         
         return app
@@ -26,7 +27,8 @@ def create_application():
         print(f"ERROR: FATAL ERROR: Failed to create application: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        # Don't call sys.exit() in production WSGI - let the server handle it
+        raise e
 
 # Create the application instance for WSGI servers (like gunicorn)
 application = create_application()
