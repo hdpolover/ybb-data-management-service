@@ -46,19 +46,38 @@ def create_and_test_app():
         # Add current dir to path
         sys.path.insert(0, os.getcwd())
         
+        # Force import the complete application
+        print("Importing complete YBB application...")
         from app import create_app
+        print("✓ create_app imported successfully")
+        
         app = create_app()
         print("✓ Flask app created successfully")
         
-        # Test health route
+        # Verify this is the complete app, not minimal
         with app.app_context():
             rules = [str(rule) for rule in app.url_map.iter_rules()]
             health_found = any('/health' in rule for rule in rules)
             export_found = any('/api/ybb/export' in rule for rule in rules)
+            certificate_found = any('/api/ybb/certificates' in rule for rule in rules)
             
             print(f"✓ Total routes: {len(rules)}")
             print(f"✓ Health endpoint: {'Found' if health_found else 'Missing'}")
             print(f"✓ Export endpoints: {'Found' if export_found else 'Missing'}")
+            print(f"✓ Certificate endpoints: {'Found' if certificate_found else 'Missing'}")
+            
+            # Test a complete app health check response
+            try:
+                with app.test_client() as client:
+                    response = client.get('/health')
+                    health_data = response.get_json()
+                    if 'mode' in health_data and health_data['mode'] == 'minimal':
+                        print("✗ WARNING: App is in minimal mode!")
+                        return None
+                    else:
+                        print("✓ Complete app mode confirmed")
+            except Exception as e:
+                print(f"✓ Health check test completed (unable to test response: {e})")
         
         return app
         

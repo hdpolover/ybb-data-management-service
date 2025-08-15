@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "YBB Data Management Flask API Service",
   "scripts": {
-    "start": ". /opt/venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload",
+    "start": "python railway_simple.py",
     "dev": "python app.py"
   },
   "engines": {
