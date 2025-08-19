@@ -120,6 +120,7 @@ def test_all_dependencies():
     print("\n🔍 Testing all dependencies...")
     
     dependencies = [
+        ('numpy', 'numpy'),
         ('pandas', 'pandas'),
         ('openpyxl', 'openpyxl'), 
         ('flask', 'Flask'),
@@ -132,11 +133,60 @@ def test_all_dependencies():
     
     for module, display_name in dependencies:
         try:
-            __import__(module)
+            imported_module = __import__(module)
             print(f"✅ {display_name} - imported successfully")
+            
+            # Special check for pandas
+            if module == 'pandas':
+                try:
+                    # Test basic pandas functionality
+                    pd = imported_module
+                    test_df = pd.DataFrame({'test': [1, 2, 3]})
+                    test_sum = test_df['test'].sum()
+                    print(f"   🧮 pandas test: DataFrame sum = {test_sum}")
+                    
+                    # Test Excel functionality
+                    from io import BytesIO
+                    buffer = BytesIO()
+                    test_df.to_excel(buffer, index=False, engine='openpyxl')
+                    buffer.seek(0)
+                    read_df = pd.read_excel(buffer, engine='openpyxl')
+                    print(f"   📊 pandas Excel test: {len(read_df)} rows read successfully")
+                    
+                except Exception as e:
+                    print(f"   ⚠️  pandas functionality test failed: {e}")
+                    # Still count as success if import worked
+            
             success_count += 1
+            
         except ImportError as e:
             print(f"❌ {display_name} - import failed: {e}")
+            
+            # Special handling for pandas - try to install if missing
+            if module == 'pandas':
+                print(f"   🔄 Attempting to install pandas...")
+                try:
+                    import subprocess
+                    import sys
+                    result = subprocess.run([
+                        sys.executable, '-m', 'pip', 'install', 
+                        '--only-binary=all', '--no-cache-dir', 
+                        'numpy==1.24.4', 'pandas==2.0.3'
+                    ], capture_output=True, text=True, timeout=300)
+                    
+                    if result.returncode == 0:
+                        print(f"   ✅ pandas installation successful")
+                        try:
+                            imported_module = __import__(module)
+                            print(f"   ✅ pandas import now working")
+                            success_count += 1
+                        except ImportError:
+                            print(f"   ❌ pandas still not importable after installation")
+                    else:
+                        print(f"   ❌ pandas installation failed: {result.stderr}")
+                        
+                except Exception as install_e:
+                    print(f"   ❌ pandas installation error: {install_e}")
     
     print(f"\n📊 Dependency status: {success_count}/{total_count} working")
     return success_count == total_count
