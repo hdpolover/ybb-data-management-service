@@ -115,39 +115,77 @@ def install_pandas_properly():
         
         print(f"   Using Python: {venv_python}")
         
-        # Install in specific order with proper flags
-        install_commands = [
-            # First, ensure we have latest pip and build tools
-            [venv_python, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools', 'wheel'],
-            
-            # Install numpy first with specific version and binary-only
-            [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
-             '--force-reinstall', 'numpy==1.24.4'],
-            
-            # Then install pandas with binary-only
-            [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
-             '--force-reinstall', 'pandas==2.0.3'],
-            
-            # Install openpyxl for Excel functionality
-            [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
-             '--force-reinstall', 'openpyxl==3.1.2']
+        # Try multiple installation strategies
+        install_strategies = [
+            # Strategy 1: Specific versions with binary-only
+            {
+                'name': 'Binary-only with pinned versions',
+                'commands': [
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'numpy==1.24.4'],
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'pandas==2.0.3'],
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'openpyxl==3.1.2']
+                ]
+            },
+            # Strategy 2: Latest compatible versions
+            {
+                'name': 'Latest compatible versions',
+                'commands': [
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'numpy>=1.21.0,<1.25.0'],
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'pandas>=1.5.0,<2.1.0'],
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'openpyxl>=3.0.0']
+                ]
+            },
+            # Strategy 3: Minimal versions
+            {
+                'name': 'Minimal working versions',
+                'commands': [
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'numpy==1.21.6'],
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'pandas==1.5.3'],
+                    [venv_python, '-m', 'pip', 'install', '--only-binary=all', '--no-cache-dir', 
+                     '--force-reinstall', 'openpyxl==3.0.10']
+                ]
+            }
         ]
         
-        for i, cmd in enumerate(install_commands, 1):
-            print(f"   📦 Step {i}/{len(install_commands)}: {' '.join(cmd[3:])}")
+        for strategy in install_strategies:
+            print(f"   � Trying strategy: {strategy['name']}")
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            strategy_success = True
+            for cmd in strategy['commands']:
+                package_name = cmd[-1].split('==')[0].split('>=')[0].split('<')[0]
+                print(f"      Installing {package_name}...")
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                
+                if result.returncode == 0:
+                    print(f"      ✅ {package_name} installed successfully")
+                else:
+                    print(f"      ❌ {package_name} installation failed:")
+                    print(f"         stderr: {result.stderr[:200]}...")
+                    strategy_success = False
+                    break
             
-            if result.returncode == 0:
-                print(f"   ✅ Step {i} completed successfully")
-            else:
-                print(f"   ❌ Step {i} failed:")
-                print(f"       stdout: {result.stdout[:200]}...")
-                print(f"       stderr: {result.stderr[:200]}...")
-                return False
+            if strategy_success:
+                # Test the installation
+                print(f"   🧪 Testing {strategy['name']} installation...")
+                if test_pandas_import():
+                    print(f"   ✅ {strategy['name']} successful!")
+                    return True
+                else:
+                    print(f"   ❌ {strategy['name']} failed import test")
+            
+            print(f"   ⚠️  {strategy['name']} failed, trying next strategy...")
         
-        print("✅ All packages installed successfully")
-        return True
+        print("❌ All installation strategies failed")
+        return False
         
     except subprocess.TimeoutExpired:
         print("❌ Installation timed out")

@@ -17,19 +17,44 @@ import time
 import sys
 from logging.handlers import RotatingFileHandler
 
-# Try to import pandas, but don't fail if it's not available
+# Try to import pandas with detailed diagnostics
 try:
+    print("🔍 Attempting pandas import...")
     import pandas as pd
+    import numpy as np
     PANDAS_AVAILABLE = True
-    print("✅ pandas imported successfully in app.py")
+    print(f"✅ pandas {pd.__version__} imported successfully in app.py")
+    print(f"✅ numpy {np.__version__} imported successfully in app.py")
+    
+    # Test basic functionality
+    try:
+        test_df = pd.DataFrame({'test': [1, 2, 3]})
+        test_sum = test_df['test'].sum()
+        print(f"✅ pandas basic functionality test passed (sum={test_sum})")
+    except Exception as e:
+        print(f"⚠️  pandas basic functionality test failed: {e}")
+        
 except ImportError as e:
-    print(f"⚠️  pandas not available in app.py: {e}")
+    print(f"❌ pandas not available in app.py: {e}")
+    print("🔍 Checking numpy availability...")
+    try:
+        import numpy as np
+        print(f"✅ numpy {np.__version__} is available")
+        print("❌ pandas import failed despite numpy being available")
+    except ImportError as numpy_e:
+        print(f"❌ numpy also not available: {numpy_e}")
+    
+    print("🔍 Checking Python environment...")
+    print(f"   Python version: {sys.version}")
+    print(f"   Python executable: {sys.executable}")
+    print(f"   Python path: {sys.path[:3]}...")
+    
     PANDAS_AVAILABLE = False
     
     # Create a comprehensive dummy pandas object for graceful degradation
     class DummyDataFrame:
         def __init__(self, *args, **kwargs):
-            raise ImportError("pandas is not available - install required C++ libraries")
+            raise ImportError("pandas is not available - Excel export functionality requires pandas with C++ libraries. Service is running in limited mode.")
         
         def __getattr__(self, name):
             raise ImportError(f"pandas is not available - cannot access '{name}' method")

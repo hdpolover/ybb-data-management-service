@@ -12,7 +12,11 @@ nixPkgs = [
     "libpng", 
     "lcms2",
     "libwebp",
-    "ghostscript"
+    "ghostscript",
+    # Essential libraries for pandas binary wheels
+    "gfortran",
+    "openblas",
+    "lapack-reference"
 ]
 
 [phases.install]
@@ -22,11 +26,13 @@ cmds = [
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir numpy==1.24.4",
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir pandas==2.0.3",
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir openpyxl==3.1.2",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt"
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt",
+    ". /opt/venv/bin/activate && python -c 'import pandas; print(f\"pandas {pandas.__version__} installed successfully\")' || python install_pandas_railway.py",
+    ". /opt/venv/bin/activate && python railway_pandas_fix.py"
 ]
 
 [start]
-cmd = ". /opt/venv/bin/activate && python verify_deployment.py && python railway_ultimate_fix.py"
+cmd = ". /opt/venv/bin/activate && python troubleshoot_pandas.py && python verify_deployment.py && python railway_ultimate_fix.py"
 
 [variables]
 PYTHONPATH = "/app:/opt/venv/lib/python3.11/site-packages"
@@ -38,3 +44,7 @@ NPY_NUM_BUILD_JOBS = "1"
 OPENBLAS_NUM_THREADS = "1"
 OMP_NUM_THREADS = "1"
 NUMEXPR_MAX_THREADS = "1"
+# Library linking for pandas
+BLAS = "openblas"
+LAPACK = "openblas"
+LD_LIBRARY_PATH = "/nix/store/*/lib"
