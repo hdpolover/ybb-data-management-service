@@ -3,9 +3,7 @@ nixPkgs = [
     "python311",
     "gcc", 
     "glibc",
-    "libgcc",
     "stdenv.cc.cc.lib",
-    "libcxx",
     "pkg-config",
     "freetype",
     "libjpeg",
@@ -14,15 +12,7 @@ nixPkgs = [
     "libpng", 
     "lcms2",
     "libwebp",
-    "ghostscript",
-    # Additional packages for pandas/numpy
-    "openblas",
-    "lapack",
-    "gfortran",
-    "blas",
-    "atlas",
-    "cmake",
-    "make"
+    "ghostscript"
 ]
 
 [phases.install]
@@ -32,9 +22,7 @@ cmds = [
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir numpy==1.24.4",
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir pandas==2.0.3",
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir openpyxl==3.1.2",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt",
-    ". /opt/venv/bin/activate && python railway_pandas_fix.py",
-    ". /opt/venv/bin/activate && python test_pandas_installation.py"
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt"
 ]
 
 [start]
@@ -45,11 +33,7 @@ PYTHONPATH = "/app:/opt/venv/lib/python3.11/site-packages"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
 PIP_CACHE_DIR = "/tmp/pip-cache"
-LD_LIBRARY_PATH = "/nix/store/bpq1s72cw9qb2fs8mnmlw6hn2c7iy0ss-gcc-14-20241116-lib/lib:/nix/store/ybjcla5bhj8g1y84998pn4a2drfxybkv-gcc-13.3.0-lib/lib:/nix/store/yjxv07k2qcrrk8a7gn1y70kz5ndg1vgd-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7-env/lib"
 # Pandas/Numpy optimization for Railway
-BLAS = "openblas"
-LAPACK = "openblas"
-ATLAS = "None"
 NPY_NUM_BUILD_JOBS = "1"
 OPENBLAS_NUM_THREADS = "1"
 OMP_NUM_THREADS = "1"
