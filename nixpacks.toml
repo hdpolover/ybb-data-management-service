@@ -16,8 +16,6 @@ nixPkgs = [
     "openblas",
     "lapack",
     "blas",
-    "libgfortran5",
-    "libquadmath",
     "libgomp",
     # Build tools without conflicts
     "gnumake",
@@ -29,18 +27,11 @@ nixPkgs = [
 [phases.install]
 cmds = [
     "python -m venv --copies /opt/venv",
-    ". /opt/venv/bin/activate && pip install --upgrade pip==24.2 setuptools==75.1.0 wheel==0.44.0",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir numpy==1.26.4",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir pandas==2.2.2",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir openpyxl==3.1.5",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir scipy==1.13.1",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt",
-    ". /opt/venv/bin/activate && python -c 'import numpy; print(f\"✅ numpy {numpy.__version__} working\"); import pandas; print(f\"✅ pandas {pandas.__version__} working\"); import openpyxl; print(f\"✅ openpyxl {openpyxl.__version__} working\"); import scipy; print(f\"✅ scipy {scipy.__version__} working\")'",
-    ". /opt/venv/bin/activate && python railway_comprehensive_pandas.py"
+    ". /opt/venv/bin/activate && python railway_binary_only_fix.py"
 ]
 
 [start]
-cmd = ". /opt/venv/bin/activate && python troubleshoot_pandas.py && python verify_deployment.py && python railway_ultimate_fix.py"
+cmd = ". /opt/venv/bin/activate && python app.py"
 
 [variables]
 PYTHONPATH = "/app:/opt/venv/lib/python3.11/site-packages"
