@@ -144,6 +144,19 @@ def main():
     log("🚀 Starting Railway Ultra-Minimal Pandas Fix")
     log("=" * 50)
     
+    # Step 0: Fix library paths before installation
+    log("🔧 Setting up library paths...")
+    try:
+        import subprocess
+        result = subprocess.run(['python', 'railway_library_path_fix.py'], 
+                              capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            log("✅ Library paths configured successfully")
+        else:
+            log("⚠️ Library path setup had issues - continuing anyway", "WARNING")
+    except Exception as e:
+        log(f"⚠️ Library path setup failed: {e}", "WARNING")
+    
     # Step 1: Install core packages
     if not install_core_packages():
         log("💥 CRITICAL: Core package installation failed", "ERROR")
