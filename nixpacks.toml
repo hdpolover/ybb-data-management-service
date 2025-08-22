@@ -4,30 +4,24 @@ nixPkgs = [
     "stdenv.cc.cc.lib",
     "glibc",
     "pkg-config",
+    "zlib",
     "freetype",
     "libjpeg",
-    "zlib",
-    "libtiff",
-    "libpng", 
-    "lcms2",
-    "libwebp",
-    "ghostscript",
-    # Mathematical and scientific libraries for pandas/numpy
+    "libpng",
+    # Core mathematical libraries (verified in nixpkgs)
     "openblas",
-    "lapack",
+    "lapack", 
     "blas",
-    "libgomp",
-    # Build tools without conflicts
+    # Essential build tools
     "gnumake",
     "cmake",
-    "which",
-    "file"
+    "which"
 ]
 
 [phases.install]
 cmds = [
     "python -m venv --copies /opt/venv",
-    ". /opt/venv/bin/activate && python railway_binary_only_fix.py"
+    ". /opt/venv/bin/activate && python railway_ultra_minimal_fix.py"
 ]
 
 [start]
