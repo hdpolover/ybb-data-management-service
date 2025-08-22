@@ -15,7 +15,7 @@ nixPkgs = [
 [phases.install]
 cmds = [
     "python -m venv --copies /opt/venv",
-    ". /opt/venv/bin/activate && python railway_cpp_diagnostic.py",
+    ". /opt/venv/bin/activate && python railway_simple_diagnostic.py",
     ". /opt/venv/bin/activate && python railway_ultra_minimal_fix.py"
 ]
 
