@@ -101,32 +101,36 @@ def test_essential_functionality():
     """Test core pandas functionality"""
     log("🧪 Testing essential functionality...")
     
-    test_code = '''
+    test_script = '''
 import sys
 import numpy as np
 import pandas as pd
 import openpyxl
 
-print(f"✅ Python: {sys.version.split()[0]}")
-print(f"✅ NumPy: {np.__version__}")
-print(f"✅ Pandas: {pd.__version__}")
-print(f"✅ OpenPyXL: {openpyxl.__version__}")
+print("✅ Python: " + sys.version.split()[0])
+print("✅ NumPy: " + np.__version__)
+print("✅ Pandas: " + pd.__version__)
+print("✅ OpenPyXL: " + openpyxl.__version__)
 
 # Test basic operations
 df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
-print(f"✅ DataFrame: {len(df)} rows")
+print("✅ DataFrame: " + str(len(df)) + " rows")
 
 # Test Excel functionality
 import io
 buffer = io.BytesIO()
 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
     df.to_excel(writer, sheet_name="Test", index=False)
-print(f"✅ Excel: {len(buffer.getvalue())} bytes")
+print("✅ Excel: " + str(len(buffer.getvalue())) + " bytes")
 
 print("🎉 ESSENTIAL TESTS PASSED!")
 '''
     
-    success, stdout, stderr = run_cmd(f'python -c "{test_code}"', "Test essential functionality")
+    # Write test script to temporary file to avoid shell escaping issues
+    with open("/tmp/test_pandas.py", "w") as f:
+        f.write(test_script)
+    
+    success, stdout, stderr = run_cmd('python /tmp/test_pandas.py', "Test essential functionality")
     
     if success:
         log("✅ Essential functionality test PASSED")
