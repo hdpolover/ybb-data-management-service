@@ -51,14 +51,17 @@ def install_core_packages():
     log("🔧 Setting up C++ library paths...")
     setup_library_paths()
     
-    # Ultra-minimal package list - only what's absolutely needed
+    # Essential packages for the application
     packages = [
         ("pip", "24.2"),
         ("wheel", "0.44.0"),
         ("setuptools", "75.1.0"),
         ("numpy", "1.26.4"),  # Use older, more compatible version
         ("pandas", "2.2.2"),
-        ("openpyxl", "3.1.5")
+        ("openpyxl", "3.1.5"),
+        ("reportlab", "4.2.2"),  # PDF generation
+        ("Pillow", "10.4.0"),   # Image processing
+        ("flask-cors", "5.0.0") # CORS support
     ]
     
     # Install each package individually with strict binary-only policy

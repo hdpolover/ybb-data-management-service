@@ -29,7 +29,7 @@ cmds = [
 ]
 
 [start]
-cmd = ". /opt/venv/bin/activate && python app.py"
+cmd = ". /opt/venv/bin/activate && python app.py || python app_minimal.py"
 
 [variables]
 PYTHONPATH = "/app:/opt/venv/lib/python3.11/site-packages"

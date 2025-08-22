@@ -3,7 +3,14 @@ YBB Data Management Service - Flask API
 Production-ready version with proper error handling
 """
 from flask import Flask, request, jsonify, send_file, g
-from flask_cors import CORS
+# Handle CORS import gracefully
+try:
+    from flask_cors import CORS
+    CORS_AVAILABLE = True
+except ImportError:
+    CORS_AVAILABLE = False
+    print("⚠️ flask_cors not available, continuing without CORS support")
+
 import json
 import os
 from datetime import datetime
@@ -95,8 +102,12 @@ def create_app():
         app = Flask(__name__)
         app.config.from_object(config)
         
-        # Setup CORS
-        CORS(app, origins=config.CORS_ORIGINS)
+        # Setup CORS if available
+        if CORS_AVAILABLE:
+            CORS(app, origins=config.CORS_ORIGINS)
+            app.logger.info("✅ CORS enabled")
+        else:
+            app.logger.warning("⚠️ CORS not available - continuing without CORS support")
         
         # Create necessary directories
         os.makedirs('logs', exist_ok=True)
