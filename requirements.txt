@@ -8,10 +8,14 @@ requests==2.32.4
 # Production server
 gunicorn==22.0.0
 
-# Data processing dependencies (pinned versions for Railway compatibility)
-numpy==1.24.4
-pandas==2.0.3
-openpyxl==3.1.2
+# Comprehensive data processing stack (August 2025 versions)
+numpy==1.26.4
+pandas==2.2.2
+openpyxl==3.1.5
+scipy==1.13.1
+xlsxwriter==3.2.0
+matplotlib==3.9.1
+seaborn==0.13.2
 psutil==5.9.8
 
 # Certificate generation dependencies
@@ -22,3 +26,8 @@ PyPDF2==3.0.1
 # Additional utilities
 click>=8.0.0
 markupsafe>=2.0.0
+
+# Data analysis support
+python-dateutil>=2.8.0
+pytz>=2023.3
+tzdata>=2023.3

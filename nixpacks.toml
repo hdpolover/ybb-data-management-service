@@ -1,9 +1,8 @@
 [phases.setup]
 nixPkgs = [
     "python311",
-    "gcc", 
-    "glibc",
     "stdenv.cc.cc.lib",
+    "glibc",
     "pkg-config",
     "freetype",
     "libjpeg",
@@ -13,22 +12,31 @@ nixPkgs = [
     "lcms2",
     "libwebp",
     "ghostscript",
-    # Essential libraries for pandas binary wheels
-    "gfortran",
+    # Mathematical and scientific libraries for pandas/numpy
     "openblas",
-    "lapack-reference"
+    "lapack",
+    "blas",
+    "libgfortran5",
+    "libquadmath",
+    "libgomp",
+    # Build tools without conflicts
+    "gnumake",
+    "cmake",
+    "which",
+    "file"
 ]
 
 [phases.install]
 cmds = [
     "python -m venv --copies /opt/venv",
-    ". /opt/venv/bin/activate && pip install --upgrade pip setuptools wheel",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir numpy==1.24.4",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir pandas==2.0.3",
-    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir openpyxl==3.1.2",
+    ". /opt/venv/bin/activate && pip install --upgrade pip==24.2 setuptools==75.1.0 wheel==0.44.0",
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir numpy==1.26.4",
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir pandas==2.2.2",
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir openpyxl==3.1.5",
+    ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir scipy==1.13.1",
     ". /opt/venv/bin/activate && pip install --only-binary=all --no-cache-dir -r requirements.txt",
-    ". /opt/venv/bin/activate && python -c 'import pandas; print(f\"pandas {pandas.__version__} installed successfully\")' || python install_pandas_railway.py",
-    ". /opt/venv/bin/activate && python railway_pandas_fix.py"
+    ". /opt/venv/bin/activate && python -c 'import numpy; print(f\"✅ numpy {numpy.__version__} working\"); import pandas; print(f\"✅ pandas {pandas.__version__} working\"); import openpyxl; print(f\"✅ openpyxl {openpyxl.__version__} working\"); import scipy; print(f\"✅ scipy {scipy.__version__} working\")'",
+    ". /opt/venv/bin/activate && python railway_comprehensive_pandas.py"
 ]
 
 [start]
@@ -39,12 +47,19 @@ PYTHONPATH = "/app:/opt/venv/lib/python3.11/site-packages"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
 PIP_CACHE_DIR = "/tmp/pip-cache"
-# Pandas/Numpy optimization for Railway
+# Comprehensive pandas/numpy optimization for Railway
 NPY_NUM_BUILD_JOBS = "1"
 OPENBLAS_NUM_THREADS = "1"
 OMP_NUM_THREADS = "1"
 NUMEXPR_MAX_THREADS = "1"
-# Library linking for pandas
+MKL_NUM_THREADS = "1"
+# Mathematical library configuration
 BLAS = "openblas"
 LAPACK = "openblas"
-LD_LIBRARY_PATH = "/nix/store/*/lib"
+OPENBLAS_VERBOSE = "0"
+# Comprehensive library linking
+LD_LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64"
+LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64"
+C_INCLUDE_PATH = "/nix/store/*/include"
+CPLUS_INCLUDE_PATH = "/nix/store/*/include"
+PKG_CONFIG_PATH = "/nix/store/*/lib/pkgconfig:/nix/store/*/share/pkgconfig"
