@@ -3,18 +3,11 @@ nixPkgs = [
     "python311",
     "stdenv.cc.cc.lib",
     "glibc",
-    "pkg-config",
     "zlib",
-    "freetype",
-    "libjpeg",
-    "libpng",
-    # Core mathematical libraries (verified in nixpkgs)
+    # Mathematical library (openblas provides BLAS + optimizations)
     "openblas",
-    "lapack", 
-    "blas",
     # Essential build tools
     "gnumake",
-    "cmake",
     "which"
 ]
 
@@ -32,19 +25,14 @@ PYTHONPATH = "/app:/opt/venv/lib/python3.11/site-packages"
 FLASK_APP = "app.py"
 FLASK_ENV = "production"
 PIP_CACHE_DIR = "/tmp/pip-cache"
-# Comprehensive pandas/numpy optimization for Railway
+# Pandas/numpy optimization for Railway
 NPY_NUM_BUILD_JOBS = "1"
 OPENBLAS_NUM_THREADS = "1"
 OMP_NUM_THREADS = "1"
-NUMEXPR_MAX_THREADS = "1"
-MKL_NUM_THREADS = "1"
 # Mathematical library configuration
 BLAS = "openblas"
 LAPACK = "openblas"
 OPENBLAS_VERBOSE = "0"
-# Comprehensive library linking
+# Library linking
 LD_LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64"
 LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64"
-C_INCLUDE_PATH = "/nix/store/*/include"
-CPLUS_INCLUDE_PATH = "/nix/store/*/include"
-PKG_CONFIG_PATH = "/nix/store/*/lib/pkgconfig:/nix/store/*/share/pkgconfig"
