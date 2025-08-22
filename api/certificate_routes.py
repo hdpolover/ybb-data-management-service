@@ -3,8 +3,21 @@ Certificate API Routes
 Handles certificate generation endpoints
 """
 from flask import Blueprint, request, jsonify, g
-from services.certificate_service import CertificateService
-from services.fallback_certificate_service import FallbackCertificateService
+# Handle certificate service imports gracefully
+try:
+    from services.certificate_service import CertificateService
+    CERTIFICATE_SERVICE_AVAILABLE = True
+except ImportError as e:
+    CERTIFICATE_SERVICE_AVAILABLE = False
+    print(f"⚠️ Certificate service not available: {e}")
+
+try:
+    from services.fallback_certificate_service import FallbackCertificateService
+    FALLBACK_CERTIFICATE_SERVICE_AVAILABLE = True
+except ImportError as e:
+    FALLBACK_CERTIFICATE_SERVICE_AVAILABLE = False
+    print(f"⚠️ Fallback certificate service not available: {e}")
+
 import logging
 import time
 import json
@@ -16,25 +29,40 @@ logger = logging.getLogger('ybb_api.certificate_routes')
 certificate_bp = Blueprint('certificates', __name__, url_prefix='/api/ybb/certificates')
 
 # Initialize services
-try:
-    certificate_service = CertificateService()
-    if hasattr(certificate_service, 'dependencies_available') and not certificate_service.dependencies_available:
+certificate_service = None
+service_available = False
+service_error = None
+
+if CERTIFICATE_SERVICE_AVAILABLE:
+    try:
+        certificate_service = CertificateService()
+        if hasattr(certificate_service, 'dependencies_available') and not certificate_service.dependencies_available:
+            service_available = False
+            service_error = f"Missing dependencies: {', '.join(certificate_service.missing_dependencies)}"
+            logger.warning(f"Certificate service dependencies missing, will use fallback: {service_error}")
+        else:
+            service_available = True
+            service_error = None
+            logger.info("Certificate service initialized successfully")
+    except Exception as e:
+        logger.error(f"Certificate service initialization failed: {e}")
+        certificate_service = None
         service_available = False
-        service_error = f"Missing dependencies: {', '.join(certificate_service.missing_dependencies)}"
-        logger.warning(f"Certificate service dependencies missing, will use fallback: {service_error}")
-    else:
-        service_available = True
-        service_error = None
-        logger.info("Certificate service initialized successfully")
-except Exception as e:
-    logger.error(f"Certificate service initialization failed: {e}")
-    certificate_service = None
-    service_available = False
-    service_error = str(e)
+        service_error = str(e)
+else:
+    logger.warning("Certificate service not available due to missing imports")
+    service_error = "Certificate service imports not available"
 
 # Initialize fallback service
-fallback_service = FallbackCertificateService()
-logger.info("Fallback certificate service initialized")
+fallback_service = None
+if FALLBACK_CERTIFICATE_SERVICE_AVAILABLE:
+    try:
+        fallback_service = FallbackCertificateService()
+        logger.info("Fallback certificate service initialized")
+    except Exception as e:
+        logger.error(f"Fallback certificate service initialization failed: {e}")
+else:
+    logger.warning("Fallback certificate service not available due to missing imports")
 
 @certificate_bp.before_request
 def log_certificate_request():

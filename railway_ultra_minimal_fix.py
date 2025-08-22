@@ -61,7 +61,8 @@ def install_core_packages():
         ("openpyxl", "3.1.5"),
         ("reportlab", "4.2.2"),  # PDF generation
         ("Pillow", "10.4.0"),   # Image processing
-        ("flask-cors", "5.0.0") # CORS support
+        ("flask-cors", "5.0.0"), # CORS support
+        ("requests", "2.32.3")   # HTTP requests
     ]
     
     # Install each package individually with strict binary-only policy
