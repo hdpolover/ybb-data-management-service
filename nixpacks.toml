@@ -17,7 +17,64 @@ cmds = [
     "python -m venv --copies /opt/venv",
     ". /opt/venv/bin/activate && python railway_simple_diagnostic.py",
     "chmod +x setup_library_paths.sh && source setup_library_paths.sh",
-    ". /opt/venv/bin/activate && python railway_ultra_minimal_fix.py"
+    "[install]
+cmd = '''
+echo "🚀 Enhanced Railway C++ Library Setup"
+
+# Create app directories
+mkdir -p /app/lib /app/logs
+
+# Advanced library discovery and setup
+echo "🔍 Finding C++ libraries..."
+CPP_PATHS=$(find /nix/store -name "libstdc++.so.6*" -type f 2>/dev/null | head -10)
+GCC_PATHS=$(find /nix/store -name "libgcc_s.so*" -type f 2>/dev/null | head -10)
+
+echo "Found C++ libraries:"
+echo "$CPP_PATHS" | head -5
+echo "$GCC_PATHS" | head -3
+
+# Extract directories and copy libraries
+LIB_DIRS=""
+for lib in $CPP_PATHS; do
+    if [ -f "$lib" ]; then
+        cp "$lib" /app/lib/ 2>/dev/null || true
+        DIR=$(dirname "$lib")
+        LIB_DIRS="$LIB_DIRS:$DIR"
+    fi
+done
+
+for lib in $GCC_PATHS; do
+    if [ -f "$lib" ]; then
+        cp "$lib" /app/lib/ 2>/dev/null || true
+        DIR=$(dirname "$lib")
+        LIB_DIRS="$LIB_DIRS:$DIR"
+    fi
+done
+
+# Set up environment
+export LD_LIBRARY_PATH="/app/lib:$LIB_DIRS:/usr/lib:/lib"
+export LIBRARY_PATH="/app/lib:$LIB_DIRS:/usr/lib:/lib"
+
+echo "📋 Library paths configured:"
+echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+
+# Save environment for Python
+echo "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"" > /app/library_env.sh
+echo "export LIBRARY_PATH=\"$LIBRARY_PATH\"" >> /app/library_env.sh
+
+# Verify libraries exist
+echo "🧪 Verifying copied libraries:"
+ls -la /app/lib/ || echo "No libraries copied"
+
+# Test library access
+echo "🔍 Testing library access:"
+ldd --version 2>/dev/null || echo "ldd not available"
+
+echo "✅ Library setup complete, running Python installation..."
+
+# Run the enhanced installation with library detective
+python railway_ultra_minimal_fix.py
+'''"
 ]
 
 [start]

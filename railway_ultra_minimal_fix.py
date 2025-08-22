@@ -47,12 +47,16 @@ def install_core_packages():
     """Install only essential packages for pandas"""
     log("📦 Installing ultra-minimal pandas stack...")
     
+    # First, set up library paths before installing anything
+    log("🔧 Setting up C++ library paths...")
+    setup_library_paths()
+    
     # Ultra-minimal package list - only what's absolutely needed
     packages = [
         ("pip", "24.2"),
         ("wheel", "0.44.0"),
         ("setuptools", "75.1.0"),
-        ("numpy", "1.26.4"),
+        ("numpy", "1.26.4"),  # Use older, more compatible version
         ("pandas", "2.2.2"),
         ("openpyxl", "3.1.5")
     ]
@@ -69,6 +73,54 @@ def install_core_packages():
     
     log("✅ Core packages installed successfully")
     return True
+
+def setup_library_paths():
+    """Set up C++ library paths dynamically"""
+    log("🔍 Finding and setting up C++ library paths...")
+    
+    import glob
+    import os
+    
+    # Find actual libstdc++.so.6 locations
+    patterns = [
+        "/nix/store/*/lib/libstdc++.so.6*",
+        "/nix/store/*/lib64/libstdc++.so.6*"
+    ]
+    
+    found_paths = set()
+    for pattern in patterns:
+        matches = glob.glob(pattern)
+        for match in matches:
+            lib_dir = os.path.dirname(match)
+            found_paths.add(lib_dir)
+            log(f"✅ Found C++ library in: {lib_dir}")
+    
+    # Also find GCC lib directories
+    gcc_patterns = [
+        "/nix/store/*-gcc-*/lib",
+        "/nix/store/*-libgcc*/lib"
+    ]
+    
+    for pattern in gcc_patterns:
+        matches = glob.glob(pattern)
+        for match in matches:
+            if os.path.isdir(match):
+                found_paths.add(match)
+                log(f"✅ Found GCC library in: {match}")
+    
+    if found_paths:
+        # Set library paths
+        explicit_path = ":".join(found_paths)
+        current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+        new_ld_path = f"{explicit_path}:{current_ld_path}".strip(':')
+        
+        os.environ['LD_LIBRARY_PATH'] = new_ld_path
+        os.environ['LIBRARY_PATH'] = new_ld_path
+        
+        log(f"📋 Set LD_LIBRARY_PATH to: {new_ld_path[:100]}...")
+        log("✅ C++ library paths configured")
+    else:
+        log("⚠️ No C++ library paths found", "WARNING")
 
 def install_flask_stack():
     """Install Flask and minimal dependencies"""
@@ -140,11 +192,24 @@ print("🎉 ESSENTIAL TESTS PASSED!")
         return False
 
 def main():
-    """Main execution"""
-    log("🚀 Starting Railway Ultra-Minimal Pandas Fix")
+    """Main execution with enhanced library detection"""
+    log("🚀 Starting Railway Ultra-Minimal Pandas Fix with Library Detective")
     log("=" * 50)
     
-    # Step 0: Fix library paths before installation
+    # Step 0: Run library detective first
+    log("🕵️ Running library detective to find and fix C++ libraries...")
+    try:
+        import subprocess
+        result = subprocess.run(['python', 'railway_library_detective.py'], 
+                              capture_output=True, text=True, timeout=120)
+        if result.returncode == 0:
+            log("✅ Library detective completed successfully")
+        else:
+            log("⚠️ Library detective had issues - continuing with fallback", "WARNING")
+    except Exception as e:
+        log(f"⚠️ Library detective failed: {e} - using fallback", "WARNING")
+    
+    # Step 1: Fix library paths before installation
     log("🔧 Setting up library paths...")
     try:
         import subprocess
@@ -157,18 +222,51 @@ def main():
     except Exception as e:
         log(f"⚠️ Library path setup failed: {e}", "WARNING")
     
-    # Step 1: Install core packages
+    # Step 2: Source library environment if created by detective
+    if os.path.exists("/app/library_env.sh"):
+        log("📋 Loading library environment from detective...")
+        try:
+            with open("/app/library_env.sh", "r") as f:
+                content = f.read()
+                for line in content.split('\n'):
+                    if line.startswith('export '):
+                        # Parse export statements
+                        parts = line.replace('export ', '').split('=', 1)
+                        if len(parts) == 2:
+                            key = parts[0].strip()
+                            value = parts[1].strip(' "\'')
+                            # Expand variables in value
+                            if '$' in value and key in value:
+                                value = value.replace(f'${key}', os.environ.get(key, ''))
+                            os.environ[key] = value
+                            log(f"📋 Set {key}")
+        except Exception as e:
+            log(f"⚠️ Failed to load library environment: {e}", "WARNING")
+    
+    # Step 3: Install core packages
     if not install_core_packages():
         log("💥 CRITICAL: Core package installation failed", "ERROR")
         sys.exit(1)
     
-    # Step 2: Install Flask (optional)
+    # Step 4: Install Flask (optional)
     install_flask_stack()
     
-    # Step 3: Test functionality
+    # Step 5: Test functionality with multiple approaches
+    log("🧪 Testing with enhanced library detection...")
     if not test_essential_functionality():
         log("💥 CRITICAL: Essential functionality test failed", "ERROR")
-        sys.exit(1)
+        
+        # Try with app/lib path if it exists
+        if os.path.exists("/app/lib"):
+            log("🔄 Retrying with /app/lib library path...")
+            old_path = os.environ.get('LD_LIBRARY_PATH', '')
+            os.environ['LD_LIBRARY_PATH'] = f"/app/lib:{old_path}"
+            if test_essential_functionality():
+                log("✅ SUCCESS with /app/lib library path!")
+            else:
+                sys.exit(1)
+        else:
+            sys.exit(1)
     
     log("=" * 50)
     log("🎉 ULTRA-MINIMAL PANDAS FIX COMPLETED!")
