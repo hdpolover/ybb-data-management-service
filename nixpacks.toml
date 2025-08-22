@@ -2,6 +2,7 @@
 nixPkgs = [
     "python311",
     "stdenv.cc.cc.lib",
+    "stdenv.cc.cc",
     "glibc",
     "zlib",
     # Mathematical library (openblas provides BLAS + optimizations)
@@ -14,6 +15,7 @@ nixPkgs = [
 [phases.install]
 cmds = [
     "python -m venv --copies /opt/venv",
+    ". /opt/venv/bin/activate && python railway_cpp_diagnostic.py",
     ". /opt/venv/bin/activate && python railway_ultra_minimal_fix.py"
 ]
 
@@ -33,6 +35,6 @@ OMP_NUM_THREADS = "1"
 BLAS = "openblas"
 LAPACK = "openblas"
 OPENBLAS_VERBOSE = "0"
-# Library linking
-LD_LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64"
-LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64"
+# Library linking (enhanced for C++ runtime)
+LD_LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64:/nix/store/*-stdenv-*/lib:/nix/store/*-gcc-*/lib"
+LIBRARY_PATH = "/nix/store/*/lib:/nix/store/*/lib64:/nix/store/*-stdenv-*/lib:/nix/store/*-gcc-*/lib"
