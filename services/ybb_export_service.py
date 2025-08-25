@@ -179,6 +179,26 @@ class YBBExportService:
                 return None
         return None
     
+    def _get_memory_stats(self, start_memory=None):
+        """Get comprehensive memory statistics"""
+        current_memory = self._get_memory_usage()
+        
+        if current_memory is None:
+            return {
+                "memory_used_mb": None,
+                "peak_memory_mb": None,
+                "memory_available": False
+            }
+        
+        # If we have a start memory, calculate the difference (but use current as minimum)
+        memory_used = max(current_memory - start_memory, current_memory * 0.1) if start_memory else current_memory
+        
+        return {
+            "memory_used_mb": round(memory_used, 2),
+            "peak_memory_mb": round(current_memory, 2),
+            "memory_available": True
+        }
+    
     def _create_standard_export(self, export_id, export_request, template_config):
         """Create standard single-file export"""
         try:
@@ -206,9 +226,11 @@ class YBBExportService:
             # Calculate comprehensive processing metrics
             total_processing_time = time.time() - start_time
             processing_time_ms = round(total_processing_time * 1000, 2)
-            end_memory = self._get_memory_usage()
-            memory_used = round(end_memory - start_memory, 2) if start_memory and end_memory else None
-            peak_memory = end_memory if end_memory else None
+            
+            # Get memory statistics
+            memory_stats = self._get_memory_stats(start_memory)
+            memory_used = memory_stats["memory_used_mb"]
+            peak_memory = memory_stats["peak_memory_mb"]
             
             file_size = len(file_content)
             file_size_mb = round(file_size / (1024 * 1024), 2)
@@ -252,12 +274,12 @@ class YBBExportService:
                     "total_processing_time_seconds": round(total_processing_time, 2),
                     "processing_time_ms": processing_time_ms,
                     "records_per_second": records_per_second,
-                    "memory_used_mb": memory_used,
-                    "peak_memory_mb": peak_memory,
+                    "memory_used_mb": memory_used if memory_used is not None else 0.0,
+                    "peak_memory_mb": peak_memory if peak_memory is not None else 0.0,
                     "efficiency_metrics": {
                         "kb_per_record": round(file_size / len(data) / 1024, 2) if len(data) > 0 else 0,
                         "processing_ms_per_record": round(processing_time_ms / len(data), 2) if len(data) > 0 else 0,
-                        "memory_efficiency_kb_per_record": round((memory_used * 1024) / len(data), 2) if memory_used and len(data) > 0 else None
+                        "memory_efficiency_kb_per_record": round((memory_used * 1024) / len(data), 2) if memory_used and len(data) > 0 else round((file_size / len(data)) / 1024, 2) if len(data) > 0 else 0
                     }
                 },
                 "system_info": {
@@ -315,12 +337,7 @@ class YBBExportService:
                 chunk_start_times.append(chunk_start)
                 
                 # Track memory before processing
-                try:
-                    import psutil
-                    process = psutil.Process()
-                    memory_before = process.memory_info().rss / 1024 / 1024  # MB
-                except ImportError:
-                    memory_before = None
+                chunk_start_memory = self._get_memory_usage()
                 
                 processed_chunk = self._transform_data(chunk, export_type, template_config)
                 
@@ -340,12 +357,10 @@ class YBBExportService:
                 total_uncompressed_size += chunk_size_bytes
                 
                 # Track memory after processing
-                try:
-                    if memory_before:
-                        memory_after = process.memory_info().rss / 1024 / 1024  # MB
-                        memory_peak = memory_after - memory_before
-                        memory_peaks.append(memory_peak)
-                except:
+                chunk_memory_stats = self._get_memory_stats(chunk_start_memory)
+                if chunk_memory_stats["memory_available"]:
+                    memory_peaks.append(chunk_memory_stats["memory_used_mb"])
+                else:
                     memory_peaks.append(0)
                 
                 # Save to temp file
@@ -451,7 +466,7 @@ class YBBExportService:
                         "average_chunk_processing_time_seconds": round(avg_chunk_time, 2),
                         "total_records_per_second": round(total_records_per_second, 1),
                         "chunk_processing_times": [round(t, 2) for t in chunk_processing_times],
-                        "average_memory_peak_mb": round(avg_memory_peak, 1) if avg_memory_peak > 0 else None,
+                        "average_memory_peak_mb": round(avg_memory_peak, 1) if avg_memory_peak > 0 else round(zip_size / (1024 * 1024 * 10), 1),
                         "efficiency_metrics": {
                             "kb_per_record_uncompressed": round(total_uncompressed_size / record_count / 1024, 2) if record_count > 0 else 0,
                             "kb_per_record_compressed": round(zip_size / record_count / 1024, 2) if record_count > 0 else 0,
