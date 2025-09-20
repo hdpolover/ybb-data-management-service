@@ -60,8 +60,113 @@ sudo chmod -R 755 /etc/ybb-data-service
 
 # Install systemd service files
 echo "⚙️ Installing systemd service files..."
-sudo cp deployment/ybb-data-service.service /etc/systemd/system/
-sudo cp deployment/ybb-data-service-staging.service /etc/systemd/system/
+
+# Create systemd service files directly since we don't have them in the current directory
+echo "Creating production service file..."
+sudo tee /etc/systemd/system/ybb-data-service.service > /dev/null <<'EOF'
+[Unit]
+Description=YBB Data Management Service (Production)
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/ybb-data-service/current
+Environment="PATH=/var/www/ybb-data-service/current/venv/bin"
+Environment="FLASK_ENV=production"
+Environment="PYTHONPATH=/var/www/ybb-data-service/current"
+ExecStart=/var/www/ybb-data-service/current/venv/bin/gunicorn \
+    --bind 0.0.0.0:5000 \
+    --workers 4 \
+    --worker-class sync \
+    --worker-connections 1000 \
+    --max-requests 1000 \
+    --max-requests-jitter 50 \
+    --timeout 300 \
+    --keep-alive 2 \
+    --log-level info \
+    --access-logfile /var/www/ybb-data-service/current/logs/gunicorn_access.log \
+    --error-logfile /var/www/ybb-data-service/current/logs/gunicorn_error.log \
+    --capture-output \
+    --enable-stdio-inheritance \
+    app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Security settings
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/ybb-data-service/current/logs
+ReadWritePaths=/var/www/ybb-data-service/current/temp
+ReadWritePaths=/var/www/ybb-data-service/current/uploads
+
+# Resource limits
+LimitNOFILE=65535
+MemoryMax=2G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "Creating staging service file..."
+sudo tee /etc/systemd/system/ybb-data-service-staging.service > /dev/null <<'EOF'
+[Unit]
+Description=YBB Data Management Service (Staging)
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/ybb-data-service-staging/current
+Environment="PATH=/var/www/ybb-data-service-staging/current/venv/bin"
+Environment="FLASK_ENV=development"
+Environment="PYTHONPATH=/var/www/ybb-data-service-staging/current"
+ExecStart=/var/www/ybb-data-service-staging/current/venv/bin/gunicorn \
+    --bind 0.0.0.0:5001 \
+    --workers 2 \
+    --worker-class sync \
+    --worker-connections 500 \
+    --max-requests 500 \
+    --max-requests-jitter 25 \
+    --timeout 300 \
+    --keep-alive 2 \
+    --log-level debug \
+    --access-logfile /var/www/ybb-data-service-staging/current/logs/gunicorn_access.log \
+    --error-logfile /var/www/ybb-data-service-staging/current/logs/gunicorn_error.log \
+    --capture-output \
+    --enable-stdio-inheritance \
+    app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Security settings
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/ybb-data-service-staging/current/logs
+ReadWritePaths=/var/www/ybb-data-service-staging/current/temp
+ReadWritePaths=/var/www/ybb-data-service-staging/current/uploads
+
+# Resource limits
+LimitNOFILE=32768
+MemoryMax=1G
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 # Reload systemd and enable services
 sudo systemctl daemon-reload
