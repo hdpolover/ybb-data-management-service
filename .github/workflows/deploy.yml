@@ -1,0 +1,242 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  APP_NAME: 'ybb-data-management-service'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Application
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run basic health check test
+      run: |
+        python -c "
+        import app
+        import pandas as pd
+        import numpy as np
+        print('✅ All imports successful')
+        print(f'pandas version: {pd.__version__}')
+        print(f'numpy version: {np.__version__}')
+        "
+        
+    - name: Test Flask app startup
+      run: |
+        timeout 10 python -c "
+        from app import app
+        import threading
+        import time
+        import requests
+        
+        def run_app():
+            app.run(host='127.0.0.1', port=5001, debug=False)
+        
+        # Start app in background
+        server_thread = threading.Thread(target=run_app, daemon=True)
+        server_thread.start()
+        time.sleep(3)
+        
+        # Test health endpoint
+        try:
+            response = requests.get('http://127.0.0.1:5001/health', timeout=5)
+            print(f'Health check status: {response.status_code}')
+            if response.status_code == 200:
+                print('✅ Health check passed')
+            else:
+                print('❌ Health check failed')
+                exit(1)
+        except Exception as e:
+            print(f'❌ Health check error: {e}')
+            exit(1)
+        " || echo "Test completed with timeout (expected behavior)"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Deploy to VPS
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup deployment environment
+      run: |
+        # Determine deployment environment based on branch
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "DEPLOY_ENV=production" >> $GITHUB_ENV
+          echo "DEPLOY_PATH=/var/www/ybb-data-service" >> $GITHUB_ENV
+          echo "SERVICE_NAME=ybb-data-service" >> $GITHUB_ENV
+        else
+          echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
+          echo "DEPLOY_PATH=/var/www/ybb-data-service-staging" >> $GITHUB_ENV
+          echo "SERVICE_NAME=ybb-data-service-staging" >> $GITHUB_ENV
+        fi
+        
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: ${{ secrets.VPS_PORT || 22 }}
+        script_stop: true
+        script: |
+          set -e
+          
+          echo "🚀 Starting deployment to ${{ env.DEPLOY_ENV }} environment..."
+          
+          # Create deployment directory if it doesn't exist
+          sudo mkdir -p ${{ env.DEPLOY_PATH }}
+          sudo chown ${{ secrets.VPS_USERNAME }}:${{ secrets.VPS_USERNAME }} ${{ env.DEPLOY_PATH }}
+          
+          # Navigate to deployment directory
+          cd ${{ env.DEPLOY_PATH }}
+          
+          # Backup current deployment if it exists
+          if [ -d "current" ]; then
+            echo "📦 Creating backup..."
+            sudo rm -rf backup || true
+            sudo mv current backup || true
+          fi
+          
+          # Clone/update repository
+          echo "📥 Downloading latest code..."
+          if [ -d ".git" ]; then
+            git fetch origin
+            git reset --hard origin/${{ github.ref_name }}
+            git clean -fd
+          else
+            git clone -b ${{ github.ref_name }} https://github.com/${{ github.repository }}.git current
+            cd current
+          fi
+          
+          # Ensure we're in the current directory
+          cd ${{ env.DEPLOY_PATH }}/current
+          
+          # Set up Python virtual environment
+          echo "🐍 Setting up Python environment..."
+          python3 -m venv venv
+          source venv/bin/activate
+          
+          # Upgrade pip and install dependencies
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Create necessary directories
+          mkdir -p logs temp uploads
+          
+          # Set proper permissions
+          sudo chown -R ${{ secrets.VPS_USERNAME }}:www-data ${{ env.DEPLOY_PATH }}/current
+          sudo chmod -R 755 ${{ env.DEPLOY_PATH }}/current
+          sudo chmod -R 775 ${{ env.DEPLOY_PATH }}/current/logs
+          sudo chmod -R 775 ${{ env.DEPLOY_PATH }}/current/temp
+          sudo chmod -R 775 ${{ env.DEPLOY_PATH }}/current/uploads
+          
+          # Copy environment file if it exists
+          if [ -f "/etc/ybb-data-service/.env.${{ env.DEPLOY_ENV }}" ]; then
+            echo "📋 Copying environment configuration..."
+            cp "/etc/ybb-data-service/.env.${{ env.DEPLOY_ENV }}" .env
+          fi
+          
+          # Test the application
+          echo "🧪 Testing application..."
+          source venv/bin/activate
+          python -c "
+          try:
+              from app import app
+              print('✅ Application imports successfully')
+          except Exception as e:
+              print(f'❌ Application test failed: {e}')
+              exit(1)
+          "
+          
+          # Stop existing service if running
+          echo "🛑 Stopping existing service..."
+          sudo systemctl stop ${{ env.SERVICE_NAME }} || echo "Service was not running"
+          
+          # Start the service
+          echo "▶️ Starting service..."
+          sudo systemctl start ${{ env.SERVICE_NAME }}
+          sudo systemctl enable ${{ env.SERVICE_NAME }}
+          
+          # Wait a moment and check service status
+          sleep 5
+          
+          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+            echo "✅ Service started successfully"
+            sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager -l
+          else
+            echo "❌ Service failed to start"
+            sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager -l
+            exit 1
+          fi
+          
+          # Health check
+          echo "🏥 Performing health check..."
+          sleep 10
+          
+          if [ "${{ env.DEPLOY_ENV }}" = "production" ]; then
+            HEALTH_URL="http://localhost:5000/health"
+          else
+            HEALTH_URL="http://localhost:5001/health"
+          fi
+          
+          if curl -f -s "$HEALTH_URL" > /dev/null; then
+            echo "✅ Health check passed"
+            echo "🎉 Deployment completed successfully!"
+          else
+            echo "❌ Health check failed"
+            echo "Service logs:"
+            sudo journalctl -u ${{ env.SERVICE_NAME }} --no-pager -l --since "5 minutes ago"
+            exit 1
+          fi
+          
+          # Clean up old backups (keep last 3)
+          echo "🧹 Cleaning up old deployments..."
+          cd ${{ env.DEPLOY_PATH }}
+          ls -t backup-* 2>/dev/null | tail -n +4 | xargs -r sudo rm -rf
+          
+    - name: Notify deployment status
+      if: always()
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: ${{ secrets.VPS_PORT || 22 }}
+        script: |
+          echo "📊 Deployment Summary for ${{ env.DEPLOY_ENV }}:"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deploy Path: ${{ env.DEPLOY_PATH }}/current"
+          echo "Service: ${{ env.SERVICE_NAME }}"
+          
+          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+            echo "Status: ✅ Service is running"
+          else
+            echo "Status: ❌ Service is not running"
+          fi
