@@ -14,36 +14,13 @@ ExecStart=/var/www/ybb-data-service-staging/current/venv/bin/gunicorn \
     --bind 0.0.0.0:5001 \
     --workers 2 \
     --worker-class sync \
-    --worker-connections 500 \
-    --max-requests 500 \
-    --max-requests-jitter 25 \
     --timeout 300 \
-    --keep-alive 2 \
     --log-level debug \
     --access-logfile /var/www/ybb-data-service-staging/current/logs/gunicorn_access.log \
     --error-logfile /var/www/ybb-data-service-staging/current/logs/gunicorn_error.log \
-    --capture-output \
-    --enable-stdio-inheritance \
     app:app
-ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
 RestartSec=5
-KillMode=mixed
-TimeoutStopSec=5
-PrivateTmp=true
-NoNewPrivileges=true
-
-# Security settings
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/www/ybb-data-service-staging/current/logs
-ReadWritePaths=/var/www/ybb-data-service-staging/current/temp
-ReadWritePaths=/var/www/ybb-data-service-staging/current/uploads
-
-# Resource limits
-LimitNOFILE=32768
-MemoryMax=1G
-CPUQuota=100%
 
 [Install]
 WantedBy=multi-user.target

@@ -110,7 +110,7 @@ jobs:
           
           # Create deployment directory if it doesn't exist
           sudo mkdir -p ${{ env.DEPLOY_PATH }}
-          sudo chown ${{ secrets.VPS_USERNAME }}:${{ secrets.VPS_USERNAME }} ${{ env.DEPLOY_PATH }}
+          sudo chown root:root ${{ env.DEPLOY_PATH }}
           
           # Navigate to deployment directory
           cd ${{ env.DEPLOY_PATH }}
@@ -149,7 +149,7 @@ jobs:
           mkdir -p logs temp uploads
           
           # Set proper permissions
-          sudo chown -R ${{ secrets.VPS_USERNAME }}:www-data ${{ env.DEPLOY_PATH }}/current
+          sudo chown -R root:www-data ${{ env.DEPLOY_PATH }}/current
           sudo chmod -R 755 ${{ env.DEPLOY_PATH }}/current
           sudo chmod -R 775 ${{ env.DEPLOY_PATH }}/current/logs
           sudo chmod -R 775 ${{ env.DEPLOY_PATH }}/current/temp
