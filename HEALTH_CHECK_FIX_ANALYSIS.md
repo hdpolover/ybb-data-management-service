@@ -10,7 +10,7 @@ The application was **crashing during startup** because of pandas import failure
 2. Calls `sys.exit(1)` when dependencies fail
 3. **Application terminates before starting Flask server**
 4. Health check can't reach `/health` endpoint → **Health check fails**
-5. Railway marks deployment as failed
+5. deployment platform marks deployment as failed
 
 ### **Module-Level Import Issues:**
 Both `app.py` and `services/ybb_export_service.py` had:
@@ -103,7 +103,7 @@ Once deployed:
 
 ```powershell
 # Test health endpoint (should work now)
-Invoke-RestMethod -Uri "https://ybb-data-management-service-production.up.railway.app/health" -Method GET
+Invoke-RestMethod -Uri "https://your-api-service.com/health" -Method GET
 
 # Should return 200 OK with service status, even if pandas=false
 ```

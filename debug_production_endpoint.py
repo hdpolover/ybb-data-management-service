@@ -236,14 +236,14 @@ def main():
     if success_count == total_tests:
         print("✅ All tests passed - the issue might be environment-specific")
         print("\nPossible causes for production 500 error:")
-        print("1. Missing environment variables in Railway")
+        print("1. Missing environment variables in deployment platform")
         print("2. Database connection issues (if using external DB)")
         print("3. Memory constraints in production")
         print("4. Different Python version in production")
         print("5. Missing system dependencies")
         
         print("\nRecommended actions:")
-        print("1. Check Railway logs for detailed error messages")
+        print("1. Check deployment platform logs for detailed error messages")
         print("2. Verify all environment variables are set")
         print("3. Check memory usage and limits")
         print("4. Test with minimal payload first")

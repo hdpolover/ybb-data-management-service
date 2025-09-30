@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test gunicorn WSGI setup for Railway deployment
+Test gunicorn WSGI setup for deployment platform deployment
 """
 import os
 import sys
@@ -111,7 +111,7 @@ def test_wsgi_import():
 
 def main():
     """Main test function"""
-    print("=== Testing Railway Deployment Configuration ===\n")
+    print("=== Testing deployment platform Deployment Configuration ===\n")
     
     # Test WSGI import first
     import_success = test_wsgi_import()
@@ -126,7 +126,7 @@ def main():
     print(f"Gunicorn Startup: {'SUCCESS' if gunicorn_success else 'FAILED'}")
     
     if import_success and gunicorn_success:
-        print("\nSUCCESS: Railway deployment should work!")
+        print("\nSUCCESS: deployment platform deployment should work!")
         print("The health check failure was likely due to configuration issues that are now fixed.")
     elif import_success:
         print("\nWARNING: WSGI works but gunicorn startup failed")

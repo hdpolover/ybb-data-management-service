@@ -71,7 +71,7 @@ def check_export_download(api_url, export_id):
     except Exception as e:
         return False, str(e)
 
-def monitor_ybb_api(api_url="https://ybb-data-management-service-production.up.railway.app"):
+def monitor_ybb_api(api_url="http://localhost:5000"):
     """Main monitoring function"""
     print("🔍 YBB Export Service Monitor")
     print("=" * 50)
@@ -147,7 +147,7 @@ def monitor_ybb_api(api_url="https://ybb-data-management-service-production.up.r
 def main():
     """Main function"""
     # Check if custom API URL provided
-    api_url = "https://ybb-data-management-service-production.up.railway.app"
+    api_url = "http://localhost:5000"
     if len(sys.argv) > 1:
         api_url = sys.argv[1]
     

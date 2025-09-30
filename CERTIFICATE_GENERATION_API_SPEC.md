@@ -491,7 +491,7 @@ public string $certificateEndpoint = '/api/v1/certificates/generate';
 ### Environment Variables
 ```env
 # Python service configuration
-YBB_PYTHON_SERVICE_URL=https://your-python-service.railway.app
+YBB_PYTHON_SERVICE_URL=https://your-python-service.your-deployment-service.com
 YBB_PYTHON_SERVICE_TOKEN=your-api-token
 YBB_CERTIFICATE_TIMEOUT=30
 ```

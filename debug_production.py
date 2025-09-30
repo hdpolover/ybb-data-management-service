@@ -7,7 +7,7 @@ import json
 import time
 
 def test_production_issue():
-    api_url = "https://ybb-data-management-service-production.up.railway.app"
+    api_url = "https://ybb-data-management-service-production.up.your-deployment-service.com"
     
     print("🔍 Investigating Production 404 Issues")
     print("=" * 50)

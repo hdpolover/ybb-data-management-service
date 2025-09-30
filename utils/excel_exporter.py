@@ -175,7 +175,7 @@ class ExcelExporter:
                     methods_tried.append(f"pandas_openpyxl: {str(e)}")
                     logger.warning(f"pandas openpyxl method failed: {str(e)}")
             
-            # Method 3: Try xlsxwriter engine (optional for Railway)
+            # Method 3: Try xlsxwriter engine (optional for deployment platform)
             if not success:
                 try:
                     output = ExcelExporter._create_with_xlsxwriter(df, sheet_name, format_options)
@@ -367,7 +367,7 @@ class ExcelExporter:
                 df.to_excel(output, sheet_name=sheet_name, index=False, engine='xlsxwriter')
         
         except ImportError:
-            # xlsxwriter not available - this is OK for Railway deployment
+            # xlsxwriter not available - this is OK for deployment platform deployment
             logger.info("xlsxwriter not available, will use openpyxl fallback")
             raise Exception("xlsxwriter not available")
         except Exception as e:

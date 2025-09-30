@@ -16,13 +16,13 @@ Excel might be blocking files from web downloads:
 Test by downloading the file with different methods:
 ```bash
 # Test with curl to bypass browser
-curl -X POST "https://your-app.railway.app/api/ybb/export/participants" \
+curl -X POST "https://your-app.your-deployment-service.com/api/ybb/export/participants" \
   -H "Content-Type: application/json" \
   -d '{"export_type":"participants","template":"standard","data":[{"id":1,"full_name":"Test"}]}' \
   -o direct_download.json
 
 # Then download the file directly
-curl "https://your-app.railway.app/api/ybb/export/{export_id}/download" -o test.xlsx
+curl "https://your-app.your-deployment-service.com/api/ybb/export/{export_id}/download" -o test.xlsx
 ```
 
 ### 3. **File Association Issues**
@@ -57,7 +57,7 @@ Different Excel versions handle files differently:
 
 ### Multi-Engine Fallback System
 - ✅ Primary: openpyxl manual (always works)
-- ✅ Secondary: pandas + openpyxl (Railway compatible)
+- ✅ Secondary: pandas + openpyxl (deployment platform compatible)
 - ✅ Optional: xlsxwriter (enhanced formatting)
 - ✅ Ultimate: basic pandas (last resort)
 
@@ -96,7 +96,7 @@ Different Excel versions handle files differently:
    - Check file extension is exactly ".xlsx"
 
 ### For Developer:
-1. **Deploy the enhanced version to Railway**
+1. **Deploy the enhanced version to deployment platform**
 2. **Monitor logs** for any fallback method usage
 3. **Test with actual production data**
 

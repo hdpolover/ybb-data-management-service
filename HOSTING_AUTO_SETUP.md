@@ -2,7 +2,7 @@
 
 ## 🚀 **For Automatic Python Execution on Hosting Platforms**
 
-Most hosting platforms (like cPanel, Heroku, Railway, etc.) automatically handle Python environments. Here's how to set it up:
+Most hosting platforms (like cPanel, Heroku, deployment platform, etc.) automatically handle Python environments. Here's how to set it up:
 
 ### 1. **Python Version Specification**
 Your `runtime.txt` tells the platform which Python version to use:
@@ -57,7 +57,7 @@ LOG_LEVEL=INFO
 - Set environment variables in control panel
 - The platform handles the rest!
 
-### **Cloud Platforms (Heroku, Railway, etc.):**
+### **Cloud Platforms (Heroku, deployment platform, etc.):**
 - Connect your GitHub repository
 - Platform auto-detects Python app
 - Builds and deploys automatically

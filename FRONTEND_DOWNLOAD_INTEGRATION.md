@@ -1,13 +1,13 @@
 # YBB Export Service - Complete Integration Guide
 
 ## Overview
-This comprehensive guide explains the complete flow for integrating with the YBB Data Management Service, from initiating an export to downloading the generated files. The service is deployed on Railway at: **https://ybb-data-management-service-production.up.railway.app**
+This comprehensive guide explains the complete flow for integrating with the YBB Data Management Service, from initiating an export to downloading the generated files. The service can be accessed at your deployment URL.
 
 ## Complete Export Flow (Start to Finish)
 
 ### Production API Base URL
 ```
-https://ybb-data-management-service-production.up.railway.app
+https://your-api-service.com
 ```
 
 ## Step 1: Initiate Export Request
@@ -17,7 +17,7 @@ First, send your data to be processed and exported.
 
 #### A. Participants Export
 **Endpoint:** `POST /api/ybb/export/participants`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/participants`
+**URL:** `https://your-api-service.com/api/ybb/export/participants`
 
 **Request Body:**
 ```json
@@ -40,7 +40,7 @@ First, send your data to be processed and exported.
 
 #### B. Payments Export
 **Endpoint:** `POST /api/ybb/export/payments`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/payments`
+**URL:** `https://your-api-service.com/api/ybb/export/payments`
 
 **Request Body:**
 ```json
@@ -63,7 +63,7 @@ First, send your data to be processed and exported.
 
 #### C. Ambassadors Export
 **Endpoint:** `POST /api/ybb/export/ambassadors`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/ambassadors`
+**URL:** `https://your-api-service.com/api/ybb/export/ambassadors`
 
 **Request Body:**
 ```json
@@ -127,7 +127,7 @@ After initiating the export, continuously check the status until completion.
 
 ### Status Check Endpoint
 **Endpoint:** `GET /api/ybb/export/{export_id}/status`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/status`
+**URL:** `https://your-api-service.com/api/ybb/export/{export_id}/status`
 
 ### Status Responses
 
@@ -185,7 +185,7 @@ When status returns `"status": "success"`, the file is ready for download.
 
 ### Download Endpoint
 **Endpoint:** `GET /api/ybb/export/{export_id}/download`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/download`
+**URL:** `https://your-api-service.com/api/ybb/export/{export_id}/download`
 
 **Response:** Binary file content with appropriate headers
 - `Content-Type`: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (for Excel)
@@ -196,7 +196,7 @@ When status returns `"status": "success"`, the file is ready for download.
 
 ### A. Storage Information
 **Endpoint:** `GET /api/ybb/storage/info`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/storage/info`
+**URL:** `https://your-api-service.com/api/ybb/storage/info`
 
 **Response:**
 ```json
@@ -214,7 +214,7 @@ When status returns `"status": "success"`, the file is ready for download.
 
 ### B. Health Check
 **Endpoint:** `GET /health`
-**URL:** `https://ybb-data-management-service-production.up.railway.app/health`
+**URL:** `https://your-api-service.com/health`
 
 **Response:**
 ```json
@@ -239,7 +239,7 @@ When status returns `"status": "success"`, the file is ready for download.
 <?php
 class YbbExportController extends CI_Controller 
 {
-    private $api_base_url = 'https://ybb-data-management-service-production.up.railway.app';
+    private $api_base_url = 'https://your-api-service.com';
     
     public function __construct() {
         parent::__construct();
@@ -734,7 +734,7 @@ class YbbExportManager {
 }
 
 // Usage Example
-const exportManager = new YbbExportManager('https://ybb-data-management-service-production.up.railway.app');
+const exportManager = new YbbExportManager('https://your-api-service.com');
 
 // Start export
 document.getElementById('start-export-btn').onclick = async () => {
@@ -819,7 +819,7 @@ document.getElementById('start-export-btn').onclick = async () => {
                         <div class="mt-4">
                             <h6>API Endpoints Used:</h6>
                             <div class="small text-muted">
-                                <div><strong>Base URL:</strong> https://ybb-data-management-service-production.up.railway.app</div>
+                                <div><strong>Base URL:</strong> https://your-api-service.com</div>
                                 <div><strong>Export:</strong> POST /api/ybb/export/{type}</div>
                                 <div><strong>Status:</strong> GET /api/ybb/export/{id}/status</div>
                                 <div><strong>Download:</strong> GET /api/ybb/export/{id}/download</div>
@@ -834,7 +834,7 @@ document.getElementById('start-export-btn').onclick = async () => {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Initialize export manager
-        const exportManager = new YbbExportManager('https://ybb-data-management-service-production.up.railway.app');
+        const exportManager = new YbbExportManager('https://your-api-service.com');
         
         // Sample data generator (replace with your actual data source)
         async function getSampleData(type) {
@@ -890,9 +890,9 @@ document.getElementById('start-export-btn').onclick = async () => {
 3. **⬇️ Download File** → `GET /api/ybb/export/{id}/download` to get the Excel file
 
 ### 🌐 **Production URLs:**
-- **Base URL:** `https://ybb-data-management-service-production.up.railway.app`
-- **Health Check:** `https://ybb-data-management-service-production.up.railway.app/health`
-- **Storage Info:** `https://ybb-data-management-service-production.up.railway.app/api/ybb/storage/info`
+- **Base URL:** `https://your-api-service.com`
+- **Health Check:** `https://your-api-service.com/health`
+- **Storage Info:** `https://your-api-service.com/api/ybb/storage/info`
 
 ### ⏱️ **Timing:**
 - **Small exports** (< 1000 records): ~5-15 seconds
@@ -1057,7 +1057,7 @@ class AdaptivePolling {
 
 ```bash
 # 1. Test Export Request
-curl -X POST "https://ybb-data-management-service-production.up.railway.app/api/ybb/export/participants" \
+curl -X POST "https://your-api-service.com/api/ybb/export/participants" \
      -H "Content-Type: application/json" \
      -d '{
        "data": [{"id": 1, "name": "Test User", "email": "test@example.com"}],
@@ -1065,17 +1065,17 @@ curl -X POST "https://ybb-data-management-service-production.up.railway.app/api/
      }'
 
 # 2. Test Status Check (replace {export_id})
-curl "https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/status"
+curl "https://your-api-service.com/api/ybb/export/{export_id}/status"
 
 # 3. Test Download (replace {export_id})
 curl -o "test_download.xlsx" \
-     "https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/download"
+     "https://your-api-service.com/api/ybb/export/{export_id}/download"
 
 # 4. Test Health Check
-curl "https://ybb-data-management-service-production.up.railway.app/health"
+curl "https://your-api-service.com/health"
 
 # 5. Test Storage Info
-curl "https://ybb-data-management-service-production.up.railway.app/api/ybb/storage/info"
+curl "https://your-api-service.com/api/ybb/storage/info"
 ```
 
 ## Security and Best Practices
@@ -1171,20 +1171,20 @@ public function download($export_id) {
 
 1. **Generate Test Export**:
    ```bash
-   curl -X POST "https://ybb-data-management-service-production.up.railway.app/api/ybb/export/participants" \
+   curl -X POST "https://your-api-service.com/api/ybb/export/participants" \
         -H "Content-Type: application/json" \
         -d '{"limit": 10}'
    ```
 
 2. **Check Status Until Ready**:
    ```bash
-   curl "https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/status"
+   curl "https://your-api-service.com/api/ybb/export/{export_id}/status"
    ```
 
 3. **Test Download**:
    ```bash
    curl -o "test_export.xlsx" \
-        "https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/download"
+        "https://your-api-service.com/api/ybb/export/{export_id}/download"
    ```
 
 ### 7. Performance Considerations

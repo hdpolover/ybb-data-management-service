@@ -97,7 +97,7 @@
 
 ### **1. Efficient Memory Management**
 - Memory usage tracking prevents excessive consumption
-- Optimal for Railway deployment (512MB limit)
+- Optimal for deployment platform deployment (512MB limit)
 - Early cleanup of temporary objects
 
 ### **2. Scalable Processing**
@@ -105,7 +105,7 @@
 - ZIP compression reduces storage by 40-60%
 - Multi-threaded file creation for large exports
 
-### **3. Railway Deployment Ready**
+### **3. deployment platform Deployment Ready**
 - Graceful fallback if psutil unavailable
 - Memory tracking optional (doesn't break if missing)
 - All metrics work in production environment
@@ -139,8 +139,8 @@ Now returns comprehensive metrics:
 - ✅ Graceful fallback if not available
 - ✅ All existing functionality preserved
 
-### **Railway Compatibility:**
-- ✅ Memory tracking works in Railway environment
+### **deployment platform Compatibility:**
+- ✅ Memory tracking works in deployment platform environment
 - ✅ All metrics available in production
 - ✅ No breaking changes to existing API
 

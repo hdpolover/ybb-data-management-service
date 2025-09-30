@@ -11,12 +11,12 @@ Before attempting to download, ensure:
 
 ## Download URL Format
 ```
-https://ybb-data-management-service-production.up.railway.app/api/ybb/export/{export_id}/download
+https://your-api-service.com/api/ybb/export/{export_id}/download
 ```
 
 **Example:**
 ```
-https://ybb-data-management-service-production.up.railway.app/api/ybb/export/f72f0c14-28be-4f5e-b5b8-efbca02056de/download
+https://your-api-service.com/api/ybb/export/f72f0c14-28be-4f5e-b5b8-efbca02056de/download
 ```
 
 ---
@@ -29,7 +29,7 @@ https://ybb-data-management-service-production.up.railway.app/api/ybb/export/f72
 
 ```javascript
 function downloadExportFile(exportId) {
-    const downloadUrl = `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/download`;
+    const downloadUrl = `https://your-api-service.com/api/ybb/export/${exportId}/download`;
     
     // Create invisible download link
     const link = document.createElement('a');
@@ -66,7 +66,7 @@ if (statusResponse.data.status === 'success') {
 
 ```javascript
 function downloadViaNewTab(exportId) {
-    const downloadUrl = `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/download`;
+    const downloadUrl = `https://your-api-service.com/api/ybb/export/${exportId}/download`;
     
     // Open download in new tab/window
     const downloadWindow = window.open(downloadUrl, '_blank');
@@ -105,7 +105,7 @@ async function downloadWithProgress(exportId) {
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
         
-        const downloadUrl = `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/download`;
+        const downloadUrl = `https://your-api-service.com/api/ybb/export/${exportId}/download`;
         
         // Start download
         const response = await fetch(downloadUrl);
@@ -206,7 +206,7 @@ class DownloadController extends CI_Controller {
         }
         
         try {
-            $api_url = 'https://ybb-data-management-service-production.up.railway.app';
+            $api_url = 'https://your-api-service.com';
             $download_url = $api_url . "/api/ybb/export/{$export_id}/download";
             
             // Initialize cURL with proper settings
@@ -314,7 +314,7 @@ async function safeDownload(exportId) {
     try {
         // Check status
         const statusResponse = await fetch(
-            `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/status`
+            `https://your-api-service.com/api/ybb/export/${exportId}/status`
         );
         const statusData = await statusResponse.json();
         
@@ -334,7 +334,7 @@ async function safeDownload(exportId) {
 
 ```javascript
 function robustDownload(exportId) {
-    const downloadUrl = `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/download`;
+    const downloadUrl = `https://your-api-service.com/api/ybb/export/${exportId}/download`;
     
     // Create link with error handling
     const link = document.createElement('a');
@@ -372,7 +372,7 @@ function downloadWithFeedback(exportId) {
     const statusDiv = document.getElementById('download-status');
     statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting download...';
     
-    const downloadUrl = `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/download`;
+    const downloadUrl = `https://your-api-service.com/api/ybb/export/${exportId}/download`;
     
     const link = document.createElement('a');
     link.href = downloadUrl;
@@ -462,11 +462,11 @@ function downloadWithFeedback(exportId) {
                                 <div class="mt-2 small text-muted">
                                     <p><strong>Download URL:</strong></p>
                                     <code class="d-block bg-light p-2 rounded" id="download-url">
-                                        https://ybb-data-management-service-production.up.railway.app/api/ybb/export/f72f0c14-28be-4f5e-b5b8-efbca02056de/download
+                                        https://your-api-service.com/api/ybb/export/f72f0c14-28be-4f5e-b5b8-efbca02056de/download
                                     </code>
                                     <p class="mt-2"><strong>Status Check:</strong></p>
                                     <code class="d-block bg-light p-2 rounded" id="status-url">
-                                        https://ybb-data-management-service-production.up.railway.app/api/ybb/export/f72f0c14-28be-4f5e-b5b8-efbca02056de/status
+                                        https://your-api-service.com/api/ybb/export/f72f0c14-28be-4f5e-b5b8-efbca02056de/status
                                     </code>
                                 </div>
                             </details>
@@ -479,7 +479,7 @@ function downloadWithFeedback(exportId) {
 
     <script>
         // Configuration
-        const API_BASE = 'https://ybb-data-management-service-production.up.railway.app';
+        const API_BASE = 'https://your-api-service.com';
         let EXPORT_ID = 'f72f0c14-28be-4f5e-b5b8-efbca02056de'; // Replace with actual ID
         
         // Method 1: Direct Download (RECOMMENDED)
@@ -800,7 +800,7 @@ async function recommendedDownload(exportId) {
     try {
         // 1. VERIFY STATUS (CRITICAL)
         const statusResponse = await fetch(
-            `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/status`
+            `https://your-api-service.com/api/ybb/export/${exportId}/status`
         );
         const statusData = await statusResponse.json();
         
@@ -809,7 +809,7 @@ async function recommendedDownload(exportId) {
         }
         
         // 2. DIRECT DOWNLOAD (RELIABLE)
-        const downloadUrl = `https://ybb-data-management-service-production.up.railway.app/api/ybb/export/${exportId}/download`;
+        const downloadUrl = `https://your-api-service.com/api/ybb/export/${exportId}/download`;
         
         const link = document.createElement('a');
         link.href = downloadUrl;

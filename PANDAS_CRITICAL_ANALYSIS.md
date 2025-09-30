@@ -38,7 +38,7 @@
 ## 🎯 **The Graceful Degradation Strategy**
 
 **Purpose**: Get the service **online and healthy** so we can:
-1. ✅ **Pass health checks** (Railway deployment succeeds)
+1. ✅ **Pass health checks** (deployment platform deployment succeeds)
 2. ✅ **Debug pandas issues** in a live environment
 3. ✅ **Test other components** while fixing pandas
 4. ✅ **Avoid complete service failure**
@@ -60,7 +60,7 @@ We added `gcc.cc.lib` to nixpacks.toml, but let me try a more comprehensive appr
 1. **Try different C++ library combinations**
 2. **Add explicit libstdc++ package**  
 3. **Use different pandas installation method**
-4. **Consider alternative hosting platforms** if Railway C++ support is limited
+4. **Consider alternative hosting platforms** if deployment platform C++ support is limited
 
 ## 📊 **Business Impact Assessment**
 
@@ -79,7 +79,7 @@ We added `gcc.cc.lib` to nixpacks.toml, but let me try a more comprehensive appr
 
 1. **Immediate**: Verify health check fix worked (service online)
 2. **Critical**: Focus 100% on fixing pandas C++ library issue
-3. **Backup**: Consider alternative deployment platforms if Railway C++ support insufficient
+3. **Backup**: Consider alternative deployment platforms if deployment platform C++ support insufficient
 
 You're absolutely right - **this service is essentially unusable without pandas working**. The graceful degradation just ensures we have a stable platform to debug and fix the pandas issue from.
 

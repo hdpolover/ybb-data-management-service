@@ -28,7 +28,7 @@ requests==2.32.4
 
 ## 🔍 Expected Behavior
 
-Once Railway finishes deploying (should be within 2-3 minutes):
+Once deployment platform finishes deploying (should be within 2-3 minutes):
 
 1. ✅ **API will start successfully** - No more import errors
 2. ✅ **Health endpoint works** - `/health` returns success  
@@ -53,4 +53,4 @@ This fallback ensures your **production application keeps working** while we res
 
 ---
 
-**Status**: 🚀 **DEPLOYING NOW** - Railway is building the fallback version
+**Status**: 🚀 **DEPLOYING NOW** - deployment platform is building the fallback version

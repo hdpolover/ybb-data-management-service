@@ -44,7 +44,7 @@ use CodeIgniter\Config\BaseConfig;
 
 class YbbExport extends BaseConfig
 {
-    public string $pythonServiceUrl = 'https://your-python-service.railway.app';
+    public string $pythonServiceUrl = 'https://your-python-service.your-deployment-service.com';
     
     public string $apiKey = 'your-api-key';
     
