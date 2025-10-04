@@ -1,0 +1,17 @@
+# Database Dependencies for YBB Export Service
+# Add these to your existing requirements.txt
+
+# MySQL database connectivity
+PyMySQL==1.1.0
+SQLAlchemy==2.0.23
+pymysql[rsa]==1.1.0
+
+# Enhanced pandas for database operations  
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Connection pooling and performance
+psutil==5.9.6
+
+# Development/Testing (optional)
+# mysql-connector-python==8.2.0  # Alternative to PyMySQL
