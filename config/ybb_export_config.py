@@ -5,50 +5,69 @@ YBB Export Configuration - Templates and Mappings
 # Export templates for different data types
 EXPORT_TEMPLATES = {
     "participants": {
-        "standard": {
+        "basic": {
             "fields": [
-                "id", "full_name", "email", "nationality", "institution", 
-                "phone_number", "category", "form_status", "payment_status", "created_at"
+                "id", "full_name", "email", "phone_number", "nationality", "category", 
+                "form_status", "payment_successful", "created_at"
             ],
             "headers": [
-                "ID", "Full Name", "Email", "Country", "Institution", 
-                "Phone Number", "Category", "Form Status", "Payment Status", "Registration Date"
+                "ID", "Full Name", "Email", "Phone Number", "Country", "Category", 
+                "Form Status", "Payment Complete", "Registration Date"
+            ],
+            "max_records_single_file": 20000,
+            "recommended_chunk_size": 8000
+        },
+        "standard": {
+            "fields": [
+                "id", "full_name", "email", "phone_number", "nationality", "institution", 
+                "category", "form_status", "payment_successful", "program_name", "created_at"
+            ],
+            "headers": [
+                "ID", "Full Name", "Email", "Phone Number", "Country", "Institution", 
+                "Category", "Form Status", "Payment Complete", "Program", "Registration Date"
             ],
             "max_records_single_file": 15000,
-            "recommended_chunk_size": 5000
+            "recommended_chunk_size": 6000
         },
         "detailed": {
             "fields": [
                 "id", "full_name", "email", "gender", "birthdate", "nationality", 
                 "education_level", "major", "institution", "organizations", 
-                "phone_number", "current_address", "emergency_contact", 
-                "category", "form_status", "payment_status", "ref_code_ambassador", "created_at"
+                "phone_number", "current_address", "emergency_account", 
+                "category", "form_status", "payment_successful", "subtheme_names",
+                "has_essays", "ref_code_ambassador", "program_name", "created_at"
             ],
             "headers": [
                 "ID", "Full Name", "Email", "Gender", "Birth Date", "Country", 
                 "Education Level", "Major", "Institution", "Organizations", 
                 "Phone Number", "Current Address", "Emergency Contact", 
-                "Category", "Form Status", "Payment Status", "Ambassador Ref", "Registration Date"
+                "Category", "Form Status", "Payment Complete", "Subthemes",
+                "Has Essays", "Ambassador Ref", "Program", "Registration Date"
             ],
             "max_records_single_file": 10000,
-            "recommended_chunk_size": 3000
+            "recommended_chunk_size": 4000
         },
         "summary": {
-            "fields": ["full_name", "email", "nationality", "category", "form_status"],
-            "headers": ["Name", "Email", "Country", "Category", "Status"],
-            "max_records_single_file": 50000,
+            "fields": ["full_name", "email", "nationality", "category", "form_status", "payment_successful"],
+            "headers": ["Name", "Email", "Country", "Category", "Form Status", "Payment Complete"],
+            "max_records_single_file": 25000,
+            "recommended_chunk_size": 10000,
             "optimized_for_large_datasets": True
         },
         "complete": {
             "fields": [
                 "id", "user_id", "account_id", "full_name", "email", "gender", "birthdate",
                 "nationality", "nationality_flag", "nationality_code", "occupation",
-                "education_level", "major", "institution", "organizations", "phone_number",
-                "country_code", "current_address", "origin_address", "picture_url",
-                "instagram_account", "emergency_contact", "contact_relation", "disease_history",
-                "tshirt_size", "category", "experiences", "achievements", "resume_url",
-                "knowledge_source", "source_account_name", "twibbon_link", "requirement_link",
-                "ref_code_ambassador", "program_id", "is_active", "is_deleted", "created_at", "updated_at"
+                "education_level", "major", "institution", "organizations", 
+                "phone_number", "country_code", "phone_flag", "current_address", "origin_address", 
+                "picture_url", "instagram_account", "emergency_account", "emergency_country_code",
+                "emergency_phone_flag", "contact_relation", "disease_history", "tshirt_size", 
+                "category", "experiences", "achievements", "resume_url", "knowledge_source", 
+                "source_account_name", "twibbon_link", "requirement_link", "ref_code_ambassador", 
+                "program_id", "program_name", "general_status", "form_status", "document_status", 
+                "payment_status", "score_total", "score_status", "has_essays", "essay_count",
+                "subtheme_names", "competition_categories", "payment_successful", 
+                "successful_payment_count", "is_active", "created_at", "updated_at"
             ],
             "headers": [
                 "ID", "User ID", "Account ID", "Full Name", "Email", "Gender", "Birth Date",
@@ -59,8 +78,21 @@ EXPORT_TEMPLATES = {
                 "Resume URL", "Knowledge Source", "Source Account", "Twibbon Link", "Requirement Link",
                 "Ambassador Ref", "Program ID", "Active", "Deleted", "Created At", "Updated At"
             ],
+            "headers": [
+                "ID", "User ID", "Account ID", "Full Name", "Email", "Gender", "Birth Date",
+                "Country", "Country Flag", "Country Code", "Occupation", "Education Level", 
+                "Major", "Institution", "Organizations", "Phone Number", "Country Code", 
+                "Phone Flag", "Current Address", "Origin Address", "Picture URL", 
+                "Instagram", "Emergency Contact", "Emergency Country Code", "Emergency Phone Flag",
+                "Contact Relation", "Disease History", "T-Shirt Size", "Category", "Experiences", 
+                "Achievements", "Resume URL", "Knowledge Source", "Source Account", "Twibbon Link", 
+                "Requirement Link", "Ambassador Ref", "Program ID", "Program Name", "General Status", 
+                "Form Status", "Document Status", "Payment Status", "Score Total", "Score Status", 
+                "Has Essays", "Essay Count", "Subthemes", "Competition Categories", "Payment Successful", 
+                "Successful Payment Count", "Active", "Created At", "Updated At"
+            ],
             "max_records_single_file": 5000,
-            "recommended_chunk_size": 2000
+            "recommended_chunk_size": 3000
         }
     },
     "payments": {

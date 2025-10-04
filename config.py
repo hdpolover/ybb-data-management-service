@@ -42,6 +42,20 @@ class Config:
     
     # Health check settings
     HEALTH_CHECK_INTERVAL = int(os.environ.get('HEALTH_CHECK_INTERVAL', 30))  # seconds
+    
+    # Database settings
+    DB_HOST = os.environ.get('DB_HOST', 'localhost')
+    DB_PORT = int(os.environ.get('DB_PORT', 3306))
+    DB_USER = os.environ.get('DB_USER', 'root')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
+    DB_NAME = os.environ.get('DB_NAME', 'ybb_data_management')
+    DB_CHARSET = os.environ.get('DB_CHARSET', 'utf8mb4')
+    
+    # Database connection pool settings
+    DB_POOL_SIZE = int(os.environ.get('DB_POOL_SIZE', 5))
+    DB_POOL_MAX_OVERFLOW = int(os.environ.get('DB_POOL_MAX_OVERFLOW', 10))
+    DB_POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', 30))
+    DB_POOL_RECYCLE = int(os.environ.get('DB_POOL_RECYCLE', 3600))
 
 class DevelopmentConfig(Config):
     """Development configuration"""

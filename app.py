@@ -89,6 +89,15 @@ from config import get_config
 # Import YBB routes
 from api.ybb_routes import ybb_bp
 
+# Import database-direct YBB routes (with graceful fallback)
+try:
+    from api.ybb_db_routes import ybb_db_bp
+    DB_ROUTES_AVAILABLE = True
+except Exception as e:
+    print(f"⚠️ Database routes not available: {e}")
+    DB_ROUTES_AVAILABLE = False
+    ybb_db_bp = None
+
 # Import certificate routes
 from api.certificate_routes import certificate_bp
 
@@ -118,6 +127,11 @@ def create_app():
         
         # Register blueprints
         app.register_blueprint(ybb_bp)
+        if DB_ROUTES_AVAILABLE and ybb_db_bp:
+            app.register_blueprint(ybb_db_bp)  # Database-direct routes
+            app.logger.info("✅ Database-direct routes registered")
+        else:
+            app.logger.warning("⚠️ Database-direct routes not available - using JSON-only mode")
         app.register_blueprint(certificate_bp)
         
         # Setup middleware
@@ -308,8 +322,15 @@ def setup_basic_routes(app):
                 '/api/export/excel',
                 '/api/data/process',
                 '/api/ybb/export/participants',
-                '/api/ybb/export/payments',
+                '/api/ybb/export/payments', 
                 '/api/ybb/export/ambassadors',
+            ] + ([
+                '/api/ybb/db/export/participants',  # Database-direct
+                '/api/ybb/db/export/payments',     # Database-direct
+                '/api/ybb/db/export/ambassadors',  # Database-direct
+                '/api/ybb/db/export/preview',      # Preview endpoint
+                '/api/ybb/db/export/count',        # Count endpoint
+            ] if DB_ROUTES_AVAILABLE else []) + [
                 '/api/ybb/certificates/generate',
                 '/api/ybb/certificates/health'
             ]
