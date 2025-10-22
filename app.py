@@ -86,8 +86,13 @@ except ImportError as e:
 # Import configuration
 from config import get_config
 
-# Import YBB routes
-from api.ybb_routes import ybb_bp
+# Import database-integrated YBB routes (primary routes)
+try:
+    from api.ybb_db_routes import ybb_db_bp
+    DB_ROUTES_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Database routes not available: {e}")
+    DB_ROUTES_AVAILABLE = False
 
 # Import certificate routes
 from api.certificate_routes import certificate_bp
@@ -116,8 +121,13 @@ def create_app():
         # Setup logging
         setup_logging(app, config)
         
-        # Register blueprints
-        app.register_blueprint(ybb_bp)
+        # Register database-integrated YBB routes
+        if DB_ROUTES_AVAILABLE:
+            app.register_blueprint(ybb_db_bp)
+            app.logger.info("✅ Database-integrated YBB routes registered")
+        else:
+            app.logger.error("❌ Database routes not available - YBB export functionality disabled")
+        
         app.register_blueprint(certificate_bp)
         
         # Setup middleware
@@ -310,6 +320,10 @@ def setup_basic_routes(app):
                 '/api/ybb/export/participants',
                 '/api/ybb/export/payments',
                 '/api/ybb/export/ambassadors',
+                '/api/ybb/db/export/participants',
+                '/api/ybb/db/export/payments',
+                '/api/ybb/db/export/statistics',
+                '/api/ybb/db/test-connection',
                 '/api/ybb/certificates/generate',
                 '/api/ybb/certificates/health'
             ]

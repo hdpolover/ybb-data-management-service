@@ -74,7 +74,11 @@ class YBBExportService:
     """Main service for handling YBB data exports"""
     
     def __init__(self):
-        self.temp_dir = tempfile.gettempdir()
+        # Use project-specific temp directory
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.temp_dir = os.path.join(project_root, "temp", "exports")
+        os.makedirs(self.temp_dir, exist_ok=True)
+        
         self.exports_storage = {}  # In production, use Redis or database
         self.file_manager = ExportFileManager()
         

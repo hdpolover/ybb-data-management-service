@@ -67,27 +67,31 @@ EXPORT_TEMPLATES = {
         "standard": {
             "fields": [
                 "id", "participant_name", "participant_email", "amount", "currency", 
-                "usd_amount", "status", "payment_method", "payment_date", "transaction_code", "order_id"
+                "usd_amount", "status_text", "payment_method", "program_payment_name", 
+                "payment_date", "transaction_code", "program_name"
             ],
             "headers": [
                 "Payment ID", "Participant Name", "Email", "Amount", "Currency", 
-                "USD Amount", "Status", "Payment Method", "Payment Date", "Transaction Code", "Order ID"
+                "USD Amount", "Status", "Payment Method", "Payment Type", 
+                "Payment Date", "Transaction Code", "Program"
             ],
             "max_records_single_file": 20000,
             "recommended_chunk_size": 8000
         },
         "detailed": {
             "fields": [
-                "id", "participant_id", "participant_name", "participant_email", "program_payment_id",
-                "payment_method_id", "transaction_code", "order_id", "payment_date", "amount",
-                "usd_amount", "currency", "status", "proof_url", "account_name", "source_name",
-                "notes", "rejection_reason", "payment_url", "created_at"
+                "id", "transaction_code", "order_id", "participant_id", "participant_name", 
+                "participant_email", "program_payment_name", "payment_category", "payment_type",
+                "payment_method", "amount", "usd_amount", "currency", "status", "status_text",
+                "payment_date", "proof_url", "account_name", "source_name", "notes", 
+                "rejection_reason", "payment_url", "program_name", "program_theme", "created_at"
             ],
             "headers": [
-                "Payment ID", "Participant ID", "Participant Name", "Email", "Program Payment ID",
-                "Payment Method ID", "Transaction Code", "Order ID", "Payment Date", "Amount",
-                "USD Amount", "Currency", "Status", "Proof URL", "Account Name", "Source Name",
-                "Notes", "Rejection Reason", "Payment URL", "Created At"
+                "Payment ID", "Transaction Code", "Order ID", "Participant ID", "Participant Name", 
+                "Email", "Payment Type Name", "Payment Category", "Funding Type",
+                "Payment Method", "Amount", "USD Amount", "Currency", "Status Code", "Status",
+                "Payment Date", "Proof URL", "Account Name", "Source Name", "Notes", 
+                "Rejection Reason", "Payment URL", "Program", "Program Theme", "Created At"
             ],
             "max_records_single_file": 15000,
             "recommended_chunk_size": 5000

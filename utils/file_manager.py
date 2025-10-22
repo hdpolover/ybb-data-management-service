@@ -15,7 +15,11 @@ class ExportFileManager:
     Manages file naming, sanitization, and storage for export operations
     """
     
-    def __init__(self, base_storage_path="/app/exports/"):
+    def __init__(self, base_storage_path=None):
+        # Use project-specific temp directory instead of Docker path
+        if base_storage_path is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            base_storage_path = os.path.join(project_root, "temp", "exports")
         self.base_storage_path = base_storage_path
         self.max_filename_length = 200
         self.excel_sheet_name_max_length = 31
