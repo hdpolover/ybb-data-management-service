@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY requirements.txt requirements_complete.txt ./
 
+# Upgrade pip and install setuptools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements_complete.txt
 
