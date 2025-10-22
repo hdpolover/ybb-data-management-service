@@ -117,6 +117,10 @@ class DatabaseYBBExportService:
         """Export payments directly from database"""
         filters = filters or {}
         options = options or {}
+    def export_payments_from_db(self, filters=None, options=None):
+        """Export payments directly from database"""
+        filters = filters or {}
+        options = options or {}
         
         export_config = {
             'template': options.get('template', 'standard'),
