@@ -4,6 +4,7 @@ Connects directly to the database to fetch and export data
 """
 import os
 import pymysql
+import pymysql.cursors
 from pymysql import Error
 import pandas as pd
 import logging
@@ -174,7 +175,7 @@ class DatabaseYBBExportService:
         connection = None
         try:
             connection = self.get_database_connection()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor(pymysql.cursors.DictCursor)
             
             # Base query for participants (correct schema with users table join)
             base_query = """
@@ -414,7 +415,7 @@ class DatabaseYBBExportService:
         connection = None
         try:
             connection = self.get_database_connection()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor(pymysql.cursors.DictCursor)
             
             # Base query for payments (enhanced with all fields and names instead of IDs)
             base_query = """
@@ -553,7 +554,7 @@ class DatabaseYBBExportService:
         
         try:
             connection = self.get_database_connection()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor(pymysql.cursors.DictCursor)
             
             if export_type == 'participants':
                 count_query = "SELECT COUNT(*) as total FROM participants p LEFT JOIN participant_statuses ps ON p.id = ps.participant_id AND ps.is_active = 1 AND ps.is_deleted = 0"
