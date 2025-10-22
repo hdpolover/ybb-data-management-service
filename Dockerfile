@@ -32,5 +32,5 @@ EXPOSE ${PORT:-5000}
 ENV FLASK_APP=app.py
 ENV PYTHONUNBUFFERED=1
 
-# Run gunicorn with dynamic port
-CMD gunicorn -w 4 -b 0.0.0.0:${PORT:-5000} --timeout 120 app:app
+# Run gunicorn with dynamic port and higher timeout for large exports
+CMD gunicorn -w 2 -b 0.0.0.0:${PORT:-5000} --timeout 300 --max-requests 1000 --max-requests-jitter 50 app:app
