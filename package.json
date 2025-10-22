@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "YBB Data Management Flask API Service",
   "scripts": {
-    "start": "python app.py",
-    "dev": "python app.py"
+    "start": "python3 app.py",
+    "dev": "python3 app.py"
   },
   "engines": {
     "python": "^3.10.0"
