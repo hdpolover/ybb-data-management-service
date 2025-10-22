@@ -3,12 +3,15 @@ Database-integrated YBB Export Service
 Connects directly to the database to fetch and export data
 """
 import os
-import mysql.connector
-from mysql.connector import Error
+import pymysql
+from pymysql import Error
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
 from services.ybb_export_service import YBBExportService
+
+# Make PyMySQL compatible with mysql.connector API
+pymysql.install_as_MySQLdb()
 
 logger = logging.getLogger('ybb_api.db_service')
 
@@ -26,16 +29,18 @@ class DatabaseYBBExportService:
             'user': os.getenv('DB_USER', 'root'),
             'password': os.getenv('DB_PASSWORD', ''),
             'database': os.getenv('DB_NAME', 'ybb_database'),
-            'charset': 'utf8mb4',
-            'autocommit': True
+            'charset': 'utf8mb4'
         }
         
     def get_database_connection(self):
         """Get database connection"""
         try:
-            connection = mysql.connector.connect(**self.db_config)
-            if connection.is_connected():
+            connection = pymysql.connect(**self.db_config)
+            if connection.open:
                 return connection
+        except Error as e:
+            logger.error(f"Database connection error: {e}")
+            raise Exception(f"Database connection failed: {e}")
         except Error as e:
             logger.error(f"Database connection error: {e}")
             raise Exception(f"Database connection failed: {e}")
