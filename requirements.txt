@@ -23,6 +23,10 @@ reportlab==4.2.0
 Pillow==10.4.0
 PyPDF2==3.0.1
 
+# Database drivers
+mysqlclient==2.2.4
+SQLAlchemy==2.0.32
+
 # Additional utilities
 click>=8.0.0
 markupsafe>=2.0.0
