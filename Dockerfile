@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt requirements_complete.txt ./
+COPY requirements.txt ./
 
 # Upgrade pip and install setuptools
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements_complete.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
