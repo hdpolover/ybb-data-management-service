@@ -406,7 +406,7 @@ class DatabaseYBBExportService:
             logger.error(f"Database error while fetching participants: {e}")
             raise Exception(f"Database query failed: {e}")
         finally:
-            if connection and connection.is_connected():
+            if connection and connection.open:
                 connection.close()
     
     def _fetch_payments_data(self, filters, config):
@@ -543,7 +543,7 @@ class DatabaseYBBExportService:
             logger.error(f"Database error while fetching payments: {e}")
             raise Exception(f"Database query failed: {e}")
         finally:
-            if connection and connection.is_connected():
+            if connection and connection.open:
                 connection.close()
     
     def get_export_statistics(self, export_type='participants', filters=None):
@@ -664,7 +664,7 @@ class DatabaseYBBExportService:
                 'message': f'Failed to get statistics: {str(e)}'
             }
         finally:
-            if connection and connection.is_connected():
+            if connection and connection.open:
                 connection.close()
     
     def test_database_connection(self):
