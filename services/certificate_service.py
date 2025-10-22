@@ -436,6 +436,7 @@ class CertificateService:
             '{{participant_occupation}}': participant.get('occupation', ''),
             '{{award_description}}': award.get('description', ''),
             '{{award_type}}': award.get('award_type', ''),
+            '{{certificate_number}}': template.get('certificate_number', ''),
         }
         
         # Add program date ranges

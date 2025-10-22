@@ -442,7 +442,8 @@ def get_available_placeholders():
                 {'placeholder': '{{award_type}}', 'description': 'Award type (winner/runner_up/mention/other)'}
             ],
             'general': [
-                {'placeholder': '{{date}}', 'description': 'Issue date or current date'}
+                {'placeholder': '{{date}}', 'description': 'Issue date or current date'},
+                {'placeholder': '{{certificate_number}}', 'description': 'Certificate number or identifier'}
             ]
         }
         
