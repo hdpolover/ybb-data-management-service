@@ -87,6 +87,9 @@ class DatabaseYBBExportService:
             if not export_config['filename']:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 export_config['filename'] = f"YBB_Participants_Export_{timestamp}.xlsx"
+            elif not export_config['filename'].endswith('.xlsx'):
+                # Ensure .xlsx extension if not present
+                export_config['filename'] = f"{export_config['filename']}.xlsx"
             
             # Create export payload for the export service
             export_payload = {
@@ -95,7 +98,9 @@ class DatabaseYBBExportService:
                 'format': export_config['format'],
                 'filename': export_config['filename'],
                 'sheet_name': export_config['sheet_name'],
-                'export_type': 'participants'
+                'export_type': 'participants',
+                'filters': filters,
+                'options': export_config
             }
             
             # Use existing export service to create the file
@@ -148,6 +153,9 @@ class DatabaseYBBExportService:
             if not export_config['filename']:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 export_config['filename'] = f"YBB_Payments_Export_{timestamp}.xlsx"
+            elif not export_config['filename'].endswith('.xlsx'):
+                # Ensure .xlsx extension if not present
+                export_config['filename'] = f"{export_config['filename']}.xlsx"
             
             # Create export payload
             export_payload = {
@@ -156,7 +164,9 @@ class DatabaseYBBExportService:
                 'format': export_config['format'],
                 'filename': export_config['filename'],
                 'sheet_name': export_config['sheet_name'],
-                'export_type': 'payments'
+                'export_type': 'payments',
+                'filters': filters,
+                'options': export_config
             }
             
             # Use existing export service to create the file
@@ -397,13 +407,23 @@ class DatabaseYBBExportService:
             
             participants = cursor.fetchall()
             
-            # Convert dates to strings for JSON serialization
+            # Sanitize and convert data for Excel compatibility
             for participant in participants:
                 for key, value in participant.items():
                     if isinstance(value, (datetime, )):
                         participant[key] = value.strftime('%Y-%m-%d %H:%M:%S')
                     elif value is None:
                         participant[key] = ''
+                    elif isinstance(value, str):
+                        # Remove problematic characters that break Excel
+                        # Remove control characters except newline and tab
+                        participant[key] = ''.join(
+                            char for char in value 
+                            if ord(char) >= 32 or char in '\n\t'
+                        )
+                        # Limit length to prevent Excel issues
+                        if len(participant[key]) > 32767:
+                            participant[key] = participant[key][:32767]
             
             return participants
             
@@ -532,7 +552,7 @@ class DatabaseYBBExportService:
             
             payments = cursor.fetchall()
             
-            # Convert dates and decimals to strings for JSON serialization
+            # Sanitize and convert data for Excel compatibility
             for payment in payments:
                 for key, value in payment.items():
                     if isinstance(value, (datetime, )):
@@ -541,6 +561,15 @@ class DatabaseYBBExportService:
                         payment[key] = ''
                     elif key in ['amount', 'usd_amount'] and value is not None:
                         payment[key] = float(value)
+                    elif isinstance(value, str):
+                        # Remove control characters except newline and tab
+                        payment[key] = ''.join(
+                            char for char in value 
+                            if ord(char) >= 32 or char in '\n\t'
+                        )
+                        # Limit length to prevent Excel issues
+                        if len(payment[key]) > 32767:
+                            payment[key] = payment[key][:32767]
             
             return payments
             
@@ -550,7 +579,120 @@ class DatabaseYBBExportService:
         finally:
             if connection and connection.open:
                 connection.close()
-    
+
+    def prepare_export_file_response(self, export_result, filters=None, options=None):
+        """
+        Prepare file download payload for an export result.
+
+        Returns tuple of (file_content, filename, content_type, metadata)
+        """
+        if not export_result or export_result.get('status') != 'success':
+            raise ValueError("Cannot prepare file response from unsuccessful export result")
+
+        export_data = export_result.get('data', {}) or {}
+        export_id = export_data.get('export_id')
+
+        if not export_id:
+            raise ValueError("Export result missing export_id")
+
+        export_strategy = export_result.get('export_strategy', 'single_file')
+        is_multi_file = export_strategy == 'multi_file'
+
+        if is_multi_file:
+            file_content, filename = self.export_service.download_export(export_id, 'zip')
+            if not filename:
+                archive_info = export_data.get('archive_info', {}) or {}
+                filename = archive_info.get('filename', f"{export_id}.zip")
+        else:
+            file_content, filename = self.export_service.download_export(export_id, 'single')
+            if not filename:
+                filename = export_data.get('file_name', f"{export_id}.xlsx")
+
+        if file_content is None:
+            raise ValueError("Export file content is not available or has expired")
+
+        content_type = self._guess_content_type(filename, export_result, is_multi_file)
+        sanitized_filename = self._sanitize_download_filename(filename, default_zip=is_multi_file)
+        metadata = self._build_export_metadata(export_result, filters, options)
+
+        return file_content, sanitized_filename, content_type, metadata
+
+    def _guess_content_type(self, filename, export_result=None, force_zip=False):
+        """Infer MIME type based on filename or export information"""
+        if force_zip:
+            return 'application/zip'
+
+        if not filename:
+            format_hint = None
+            if export_result:
+                format_hint = (
+                    export_result.get('system_info', {}).get('format') or
+                    export_result.get('data', {}).get('format')
+                )
+            if format_hint == 'csv':
+                return 'text/csv'
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+        lower_name = filename.lower()
+        if lower_name.endswith('.csv'):
+            return 'text/csv'
+        if lower_name.endswith('.zip'):
+            return 'application/zip'
+        if lower_name.endswith('.xls') or lower_name.endswith('.xlsx'):
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        return 'application/octet-stream'
+
+    def _sanitize_download_filename(self, filename, default_zip=False):
+        """Sanitize filename for HTTP download while preserving extension"""
+        if not filename:
+            filename = "export.zip" if default_zip else "export.xlsx"
+
+        name, ext = os.path.splitext(filename)
+        if default_zip and ext.lower() != '.zip':
+            ext = '.zip'
+        elif not default_zip and ext.lower() not in ['.xlsx', '.csv']:
+            ext = '.xlsx'
+
+        safe_name = ''.join(c if c.isalnum() or c in ['-', '_', '.'] else '_' for c in name)
+        safe_name = safe_name.strip('._')
+        if not safe_name:
+            safe_name = "export"
+
+        return f"{safe_name}{ext}"
+
+    def _build_export_metadata(self, export_result, filters=None, options=None):
+        """Assemble lightweight metadata about the export for downstream use"""
+        export_data = export_result.get('data', {}) or {}
+        system_info = export_result.get('system_info') or {}
+        if not system_info:
+            system_info = export_result.get('data', {}).get('system_info', {}) or {}
+
+        metadata = {
+            'export_id': export_data.get('export_id'),
+            'export_strategy': export_result.get('export_strategy', 'single_file'),
+            'record_count': export_data.get('record_count') or export_data.get('total_records'),
+            'export_type': system_info.get('export_type'),
+            'template': (
+                system_info.get('template')
+                or export_data.get('template')
+                or (options or {}).get('template')
+            ),
+            'format': (
+                system_info.get('format')
+                or export_data.get('format')
+                or (options or {}).get('format', 'excel')
+            )
+        }
+
+        if filters:
+            metadata['filters'] = filters
+        if options:
+            sanitized_options = {k: v for k, v in options.items() if k != 'response_mode'}
+            if sanitized_options:
+                metadata['options'] = sanitized_options
+
+        return metadata
+
     def get_export_statistics(self, export_type='participants', filters=None):
         """Get statistics about data before exporting"""
         filters = filters or {}
