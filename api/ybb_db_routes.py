@@ -94,7 +94,7 @@ def export_participants_from_database():
         filters = dict(request_data.get('filters', {}) or {})
         options = dict(request_data.get('options', {}) or {})
         
-        # Determine desired response mode (file by default)
+        # Determine desired response mode (metadata/JSON by default for frontend compatibility)
         response_mode = request_data.get('response_mode') or request.args.get('response_mode')
         option_response_mode = options.pop('response_mode', None)
         if response_mode is None and option_response_mode is not None:
@@ -105,7 +105,8 @@ def export_participants_from_database():
         if response_mode is None and (_as_bool(metadata_only_flag) or _as_bool(option_metadata_flag)):
             response_mode = 'metadata'
         
-        delivery_mode = (response_mode or 'file').lower()
+        # Default to metadata for frontend compatibility (PHP expects JSON with download URL)
+        delivery_mode = (response_mode or 'metadata').lower()
         
         # Log export parameters
         logger.info(
@@ -251,7 +252,8 @@ def export_payments_from_database():
         if response_mode is None and (_as_bool(metadata_only_flag) or _as_bool(option_metadata_flag)):
             response_mode = 'metadata'
         
-        delivery_mode = (response_mode or 'file').lower()
+        # Default to metadata for frontend compatibility (PHP expects JSON with download URL)
+        delivery_mode = (response_mode or 'metadata').lower()
         
         logger.info(
             f"PAYMENTS_DB_EXPORT_PARAMS | ID: {request_id} | "
