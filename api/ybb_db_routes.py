@@ -143,14 +143,27 @@ def export_participants_from_database():
                 filters=filters,
                 options=options
             )
+            
+            # Validate file content exists
+            if not file_content:
+                logger.error(f"PARTICIPANTS_DB_EXPORT_NO_CONTENT | ID: {request_id} | Export ID: {export_id}")
+                return jsonify({
+                    "status": "error",
+                    "message": "Export file content is not available",
+                    "export_id": export_id,
+                    "request_id": request_id
+                }), 404
+                
         except Exception as prep_error:
             logger.error(
                 f"PARTICIPANTS_DB_EXPORT_DELIVERY_FAILED | ID: {request_id} | "
-                f"Export ID: {export_id} | Error: {str(prep_error)}"
+                f"Export ID: {export_id} | Error: {str(prep_error)}",
+                exc_info=True
             )
             return jsonify({
                 "status": "error",
                 "message": f"Export was created but failed during delivery: {str(prep_error)}",
+                "export_id": export_id,
                 "request_id": request_id
             }), 500
         
