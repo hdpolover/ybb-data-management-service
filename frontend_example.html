@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YBB Data Export - Frontend Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .export-results {
+            margin-top: 20px;
+        }
+        .download-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 10px 10px 0;
+            font-weight: bold;
+        }
+        .download-link:hover {
+            background-color: #218838;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .example-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 YBB Data Export Service</h1>
+        <p>This demonstrates how to export participants data using the Python Flask API from a frontend application.</p>
+        
+        <div class="example-section">
+            <h3>🚀 API Status</h3>
+            <p>Flask API is running at: <strong>http://127.0.0.1:5000</strong></p>
+            <button type="button" id="testConnection">Test API Connection</button>
+            <div id="connectionStatus" class="status"></div>
+        </div>
+
+        <h2>📊 Export Participants Data</h2>
+        
+        <form id="exportForm">
+            <div class="form-group">
+                <label for="template">Export Template:</label>
+                <select id="template" name="template">
+                    <option value="standard">Standard (10 columns)</option>
+                    <option value="detailed">Detailed (18 columns)</option>
+                    <option value="summary">Summary (5 columns)</option>
+                    <option value="complete">Complete (39 columns)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="filename">Custom Filename (optional):</label>
+                <input type="text" id="filename" name="filename" placeholder="Leave blank for auto-generated filename">
+            </div>
+            
+            <div class="form-group">
+                <label for="sheetName">Excel Sheet Name:</label>
+                <input type="text" id="sheetName" name="sheetName" value="Participants Data">
+            </div>
+            
+            <button type="submit" id="exportBtn">🚀 Export Participants Data</button>
+        </form>
+        
+        <div class="spinner" id="loadingSpinner"></div>
+        <div id="exportStatus" class="status"></div>
+        <div id="exportResults" class="export-results"></div>
+
+        <div class="example-section">
+            <h3>💻 CodeIgniter 4 Integration Code</h3>
+            <p>Here's how you would implement this in your CI4 controller:</p>
+            <pre><code><?php
+// In your CI4 Controller
+public function exportParticipants()
+{
+    // Get participants from your model
+    $participantsModel = model('ParticipantsModel');
+    $participants = $participantsModel->getExportData();
+    
+    // Configure export
+    $exportData = [
+        'data' => $participants,
+        'template' => $this->request->getPost('template') ?: 'standard',
+        'format' => 'excel',
+        'filename' => $this->request->getPost('filename') ?: null,
+        'sheet_name' => $this->request->getPost('sheet_name') ?: 'Participants Data'
+    ];
+    
+    // Call Python API
+    $apiUrl = 'http://127.0.0.1:5000/api/ybb/export/participants';
+    
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $apiUrl,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($exportData),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 300,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode === 200) {
+        $result = json_decode($response, true);
+        
+        if ($result['status'] === 'success') {
+            // Return download information to frontend
+            return $this->response->setJSON([
+                'success' => true,
+                'export_id' => $result['data']['export_id'],
+                'filename' => $result['data']['file_name'],
+                'download_url' => base_url("admin/download/{$result['data']['export_id']}"),
+                'file_size' => $result['data']['file_size'],
+                'record_count' => $result['data']['record_count']
+            ]);
+        }
+    }
+    
+    return $this->response->setJSON([
+        'success' => false,
+        'message' => 'Export failed'
+    ]);
+}
+
+// Download handler
+public function download($exportId)
+{
+    $downloadUrl = "http://127.0.0.1:5000/api/ybb/export/{$exportId}/download";
+    
+    // Stream file from Python API to browser
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $downloadUrl,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 120
+    ]);
+    
+    $fileContent = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode === 200) {
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->setHeader('Content-Disposition', 'attachment; filename="participants_export.xlsx"')
+            ->setBody($fileContent);
+    }
+    
+    throw new \CodeIgniter\Exceptions\PageNotFoundException();
+}
+?></code></pre>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://127.0.0.1:5000';
+        
+        // Test API connection
+        document.getElementById('testConnection').addEventListener('click', async function() {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status info';
+            statusDiv.innerHTML = '🔍 Testing API connection...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `✅ API is running successfully!<br>
+                        Service: ${result.service}<br>
+                        Status: ${result.status}<br>
+                        Version: ${result.version}`;
+                } else {
+                    throw new Error('API returned error status');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ API connection failed: ${error.message}`;
+            }
+        });
+        
+        // Handle export form submission
+        document.getElementById('exportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const exportBtn = document.getElementById('exportBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const statusDiv = document.getElementById('exportStatus');
+            const resultsDiv = document.getElementById('exportResults');
+            
+            // Show loading state
+            exportBtn.disabled = true;
+            exportBtn.textContent = '⏳ Exporting...';
+            loadingSpinner.style.display = 'block';
+            statusDiv.style.display = 'none';
+            resultsDiv.innerHTML = '';
+            
+            // Sample participants data (in real app, this would come from your backend)
+            const sampleParticipants = [
+                {
+                    id: 1,
+                    name: "Alice Johnson",
+                    email: "alice@ybbsummit2025.com",
+                    phone: "+1-555-0101",
+                    program_id: 101,
+                    form_status: "approved",
+                    birthdate: "1999-03-15",
+                    country: "USA",
+                    university: "Stanford University",
+                    created_at: "2025-07-26 09:30:00",
+                    updated_at: "2025-07-26 10:15:00"
+                },
+                {
+                    id: 2,
+                    name: "Bob Chen",
+                    email: "bob@ybbsummit2025.com",
+                    phone: "+1-555-0102",
+                    program_id: 101,
+                    form_status: "pending",
+                    birthdate: "1998-11-22",
+                    country: "Canada",
+                    university: "University of Toronto",
+                    created_at: "2025-07-26 10:00:00",
+                    updated_at: "2025-07-26 10:30:00"
+                },
+                {
+                    id: 3,
+                    name: "Maria Garcia",
+                    email: "maria@ybbsummit2025.com",
+                    phone: "+1-555-0103",
+                    program_id: 101,
+                    form_status: "approved",
+                    birthdate: "2000-08-10",
+                    country: "Mexico",
+                    university: "Universidad Nacional",
+                    created_at: "2025-07-26 11:00:00",
+                    updated_at: "2025-07-26 11:30:00"
+                }
+            ];
+            
+            // Prepare export payload
+            const template = document.getElementById('template').value;
+            const filename = document.getElementById('filename').value || 
+                `YBB_Participants_Export_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xlsx`;
+            const sheetName = document.getElementById('sheetName').value;
+            
+            const exportPayload = {
+                data: sampleParticipants,
+                template: template,
+                format: 'excel',
+                filename: filename,
+                sheet_name: sheetName,
+                filters: {
+                    program_id: 101,
+                    status: 'all'
+                },
+                options: {
+                    include_related: true,
+                    sort_by: 'created_at',
+                    sort_order: 'desc'
+                }
+            };
+            
+            try {
+                // Call export API
+                const response = await fetch(`${API_BASE_URL}/api/ybb/export/participants`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(exportPayload)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    // Success
+                    statusDiv.className = 'status success';
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = '✅ Export completed successfully!';
+                    
+                    const data = result.data;
+                    const metadata = result.metadata || {};
+                    
+                    resultsDiv.innerHTML = `
+                        <h3>📋 Export Details</h3>
+                        <p><strong>Export ID:</strong> ${data.export_id}</p>
+                        <p><strong>Filename:</strong> ${data.file_name}</p>
+                        <p><strong>Records:</strong> ${data.record_count.toLocaleString()}</p>
+                        <p><strong>File Size:</strong> ${formatFileSize(data.file_size)}</p>
+                        <p><strong>Template:</strong> ${metadata.template || 'N/A'}</p>
+                        <p><strong>Processing Time:</strong> ${(metadata.processing_time || 0).toFixed(2)}s</p>
+                        
+                        <a href="${API_BASE_URL}/api/ybb/export/${data.export_id}/download" 
+                           class="download-link" target="_blank">
+                           📥 Download Excel File
+                        </a>
+                        
+                        <p><small><strong>Note:</strong> In your CI4 app, you would create a controller route to handle the download and stream it through your application for security.</small></p>
+                    `;
+                    
+                } else {
+                    // Error
+                    statusDiv.className = 'status error';
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = `❌ Export failed: ${result.message || 'Unknown error'}`;
+                }
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = `❌ Network error: ${error.message}`;
+            } finally {
+                // Reset UI
+                exportBtn.disabled = false;
+                exportBtn.textContent = '🚀 Export Participants Data';
+                loadingSpinner.style.display = 'none';
+            }
+        });
+        
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (bytes >= 1024 * 1024) {
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            } else if (bytes >= 1024) {
+                return (bytes / 1024).toFixed(2) + ' KB';
+            } else {
+                return bytes + ' bytes';
+            }
+        }
+        
+        // Auto-test connection on page load
+        window.addEventListener('load', function() {
+            document.getElementById('testConnection').click();
+        });
+    </script>
+</body>
+</html>

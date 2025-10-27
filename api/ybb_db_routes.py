@@ -2,10 +2,9 @@
 Enhanced YBB API Blueprint with Database Integration
 Handles YBB-specific API endpoints with direct database connectivity
 """
-from flask import Blueprint, request, jsonify, send_file, g
+from flask import Blueprint, request, jsonify, g, Response
 from services.database_ybb_export_service import DatabaseYBBExportService
 from services.ybb_export_service import YBBExportService
-from io import BytesIO
 import logging
 import json
 import time
@@ -15,6 +14,14 @@ logger = logging.getLogger('ybb_api.db_routes')
 
 # Create blueprint
 ybb_db_bp = Blueprint('ybb_db', __name__, url_prefix='/api/ybb')
+
+def _as_bool(value):
+    """Helper to interpret truthy string/boolean flags"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return False
 
 # Initialize services
 try:
@@ -83,9 +90,22 @@ def export_participants_from_database():
         
         request_data = request.get_json() or {}
         
-        # Extract filters and options
-        filters = request_data.get('filters', {})
-        options = request_data.get('options', {})
+        # Extract filters and options (copy to avoid mutating request payload)
+        filters = dict(request_data.get('filters', {}) or {})
+        options = dict(request_data.get('options', {}) or {})
+        
+        # Determine desired response mode (file by default)
+        response_mode = request_data.get('response_mode') or request.args.get('response_mode')
+        option_response_mode = options.pop('response_mode', None)
+        if response_mode is None and option_response_mode is not None:
+            response_mode = option_response_mode
+        
+        metadata_only_flag = request_data.get('metadata_only')
+        option_metadata_flag = options.pop('metadata_only', None)
+        if response_mode is None and (_as_bool(metadata_only_flag) or _as_bool(option_metadata_flag)):
+            response_mode = 'metadata'
+        
+        delivery_mode = (response_mode or 'file').lower()
         
         # Log export parameters
         logger.info(
@@ -110,11 +130,47 @@ def export_participants_from_database():
         
         logger.info(
             f"PARTICIPANTS_DB_EXPORT_SUCCESS | ID: {request_id} | "
-            f"Export ID: {export_id} | Time: {processing_time}ms"
+            f"Export ID: {export_id} | Time: {processing_time}ms | Mode: {delivery_mode}"
         )
         
-        result["request_id"] = request_id
-        return jsonify(result), 200
+        if delivery_mode in ('metadata', 'json'):
+            result["request_id"] = request_id
+            return jsonify(result), 200
+        
+        try:
+            file_content, filename, content_type, export_metadata = db_export_service.prepare_export_file_response(
+                result,
+                filters=filters,
+                options=options
+            )
+        except Exception as prep_error:
+            logger.error(
+                f"PARTICIPANTS_DB_EXPORT_DELIVERY_FAILED | ID: {request_id} | "
+                f"Export ID: {export_id} | Error: {str(prep_error)}"
+            )
+            return jsonify({
+                "status": "error",
+                "message": f"Export was created but failed during delivery: {str(prep_error)}",
+                "request_id": request_id
+            }), 500
+        
+        export_metadata["request_id"] = request_id
+        export_metadata["processing_time"] = processing_time / 1000
+        
+        response = Response(file_content, mimetype=content_type)
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Length'] = str(len(file_content))
+        if export_metadata.get('export_id'):
+            response.headers['X-Export-Id'] = export_metadata['export_id']
+        response.headers['X-Export-Metadata'] = json.dumps(export_metadata, default=str)
+        response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition,X-Export-Id,X-Export-Metadata'
+        
+        logger.info(
+            f"PARTICIPANTS_DB_EXPORT_DELIVERED | ID: {request_id} | "
+            f"Export ID: {export_id} | Filename: {filename} | Size: {len(file_content)} bytes"
+        )
+        
+        return response
         
     except Exception as e:
         processing_time = round((time.time() - start_time) * 1000, 2)
@@ -169,8 +225,20 @@ def export_payments_from_database():
         
         request_data = request.get_json() or {}
         
-        filters = request_data.get('filters', {})
-        options = request_data.get('options', {})
+        filters = dict(request_data.get('filters', {}) or {})
+        options = dict(request_data.get('options', {}) or {})
+        
+        response_mode = request_data.get('response_mode') or request.args.get('response_mode')
+        option_response_mode = options.pop('response_mode', None)
+        if response_mode is None and option_response_mode is not None:
+            response_mode = option_response_mode
+        
+        metadata_only_flag = request_data.get('metadata_only')
+        option_metadata_flag = options.pop('metadata_only', None)
+        if response_mode is None and (_as_bool(metadata_only_flag) or _as_bool(option_metadata_flag)):
+            response_mode = 'metadata'
+        
+        delivery_mode = (response_mode or 'file').lower()
         
         logger.info(
             f"PAYMENTS_DB_EXPORT_PARAMS | ID: {request_id} | "
@@ -192,11 +260,68 @@ def export_payments_from_database():
         
         logger.info(
             f"PAYMENTS_DB_EXPORT_SUCCESS | ID: {request_id} | "
-            f"Export ID: {export_id} | Time: {processing_time}ms"
+            f"Export ID: {export_id} | Time: {processing_time}ms | Mode: {delivery_mode}"
         )
         
-        result["request_id"] = request_id
-        return jsonify(result), 200
+        if delivery_mode in ('metadata', 'json'):
+            result["request_id"] = request_id
+            return jsonify(result), 200
+        
+        try:
+            file_content, filename, content_type, export_metadata = db_export_service.prepare_export_file_response(
+                result,
+                filters=filters,
+                options=options
+            )
+            
+            # Additional validation for file content
+            if not file_content:
+                logger.error(
+                    f"PAYMENTS_DB_EXPORT_NO_CONTENT | ID: {request_id} | "
+                    f"Export ID: {export_id} | File content is empty or None"
+                )
+                return jsonify({
+                    "status": "error",
+                    "message": "Export file is not available. The file may have expired or failed to generate.",
+                    "export_id": export_id,
+                    "request_id": request_id
+                }), 404
+                
+            if not filename:
+                logger.warning(f"PAYMENTS_DB_EXPORT_NO_FILENAME | ID: {request_id} | Using default filename")
+                filename = f"YBB_Payments_Export_{export_id[:8]}.xlsx"
+                
+        except Exception as prep_error:
+            logger.error(
+                f"PAYMENTS_DB_EXPORT_DELIVERY_FAILED | ID: {request_id} | "
+                f"Export ID: {export_id} | Error: {str(prep_error)}",
+                exc_info=True
+            )
+            return jsonify({
+                "status": "error",
+                "message": f"Export was created but failed during delivery: {str(prep_error)}",
+                "export_id": export_id,
+                "request_id": request_id,
+                "details": str(prep_error)
+            }), 500
+        
+        export_metadata["request_id"] = request_id
+        export_metadata["processing_time"] = processing_time / 1000
+        
+        response = Response(file_content, mimetype=content_type)
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Length'] = str(len(file_content))
+        if export_metadata.get('export_id'):
+            response.headers['X-Export-Id'] = export_metadata['export_id']
+        response.headers['X-Export-Metadata'] = json.dumps(export_metadata, default=str)
+        response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition,X-Export-Id,X-Export-Metadata'
+        
+        logger.info(
+            f"PAYMENTS_DB_EXPORT_DELIVERED | ID: {request_id} | "
+            f"Export ID: {export_id} | Filename: {filename} | Size: {len(file_content)} bytes"
+        )
+        
+        return response
         
     except Exception as e:
         processing_time = round((time.time() - start_time) * 1000, 2)
@@ -291,9 +416,15 @@ def download_export(export_id):
             logger.error(f"DOWNLOAD_NOT_FOUND | ID: {request_id} | Export ID: {export_id}")
             return jsonify({
                 "status": "error",
-                "message": "Export file not found or expired",
-                "request_id": request_id
+                "message": "Export file not found or expired. The file may have been cleaned up or never existed.",
+                "export_id": export_id,
+                "request_id": request_id,
+                "suggestion": "Please create a new export"
             }), 404
+        
+        if not filename:
+            logger.warning(f"DOWNLOAD_NO_FILENAME | ID: {request_id} | Export ID: {export_id} | Using default filename")
+            filename = f"export_{export_id[:8]}.xlsx"
         
         file_size = len(file_content)
         processing_time = round((time.time() - start_time) * 1000, 2)
@@ -332,8 +463,6 @@ def download_export(export_id):
         # Clean filename
         safe_filename = filename.replace(' ', '_').replace('(', '').replace(')', '')
         safe_filename = ''.join(c for c in safe_filename if c.isalnum() or c in '._-')
-        
-        from flask import Response
         
         response = Response(
             file_content,

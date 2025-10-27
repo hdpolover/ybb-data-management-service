@@ -149,13 +149,17 @@ class DatabaseYBBExportService:
             
             logger.info(f"Fetched {len(payments_data)} payments from database")
             
-            # Generate filename if not provided
+            # Generate descriptive filename if not provided
             if not export_config['filename']:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                export_config['filename'] = f"YBB_Payments_Export_{timestamp}.xlsx"
-            elif not export_config['filename'].endswith('.xlsx'):
-                # Ensure .xlsx extension if not present
-                export_config['filename'] = f"{export_config['filename']}.xlsx"
+                date_str = datetime.now().strftime('%d-%m-%Y')
+                # Create a more descriptive filename similar to participants export
+                program_id = filters.get('program_id', 'All')
+                export_config['filename'] = f"YBB_Payments_Export_Program{program_id}_{date_str}_{timestamp}.xlsx"
+            elif not export_config['filename'].endswith('.xlsx') and not export_config['filename'].endswith('.csv'):
+                # Ensure proper extension if not present
+                ext = '.csv' if export_config['format'] == 'csv' else '.xlsx'
+                export_config['filename'] = f"{export_config['filename']}{ext}"
             
             # Create export payload
             export_payload = {

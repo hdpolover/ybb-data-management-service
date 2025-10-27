@@ -314,6 +314,7 @@ class YBBExportService:
             data = export_request["data"]
             export_type = export_request["export_type"]
             template_name = export_request.get("template", "standard")
+            format_type = export_request.get("format", "excel")
             record_count = len(data)
             
             # Track data preparation time
@@ -415,12 +416,24 @@ class YBBExportService:
             avg_memory_peak = sum(memory_peaks) / len(memory_peaks) if memory_peaks else 0
             
             # Store export info
+            system_info_payload = {
+                "export_type": export_type,
+                "template": template_name,
+                "format": format_type,
+                "filters_applied": export_request.get("filters", {}),
+                "chunk_size": chunk_size,
+                "compression_level": 6,
+                "temp_files_cleanup_scheduled": True,
+                "export_expires_at": None  # placeholder, updated after export_info creation
+            }
+
             export_info = {
                 "export_id": export_id,
                 "status": "success",
                 "export_strategy": "multi_file",
                 "export_type": export_type,
                 "template": template_name,
+                "format": format_type,
                 "record_count": record_count,
                 "total_chunks": total_chunks,
                 "files_info": files_info,
@@ -435,6 +448,8 @@ class YBBExportService:
                 "expires_at": datetime.now() + timedelta(days=SYSTEM_CONFIG["limits"]["file_retention_days"])
             }
             
+            system_info_payload["export_expires_at"] = export_info["expires_at"].isoformat()
+            
             self.exports_storage[export_id] = export_info
             
             return {
@@ -443,6 +458,8 @@ class YBBExportService:
                 "export_strategy": "multi_file",
                 "data": {
                     "export_id": export_id,
+                    "template": template_name,
+                    "format": format_type,
                     "total_records": record_count,
                     "total_files": total_chunks,
                     "individual_files": [
@@ -478,14 +495,10 @@ class YBBExportService:
                             "compression_efficiency": f"{compression_ratio:.1f}%"
                         }
                     },
-                    "system_info": {
-                        "chunk_size": chunk_size,
-                        "compression_level": 6,
-                        "temp_files_cleanup_scheduled": True,
-                        "export_expires_at": export_info["expires_at"].isoformat()
-                    }
+                    "system_info": system_info_payload
                 },
-                "download_url": f"/api/ybb/export/{export_id}/download"
+                "download_url": f"/api/ybb/export/{export_id}/download",
+                "system_info": system_info_payload
             }
             
         except Exception as e:
@@ -893,21 +906,47 @@ class YBBExportService:
     def download_export(self, export_id, file_type="single"):
         """Download export file(s)"""
         if export_id not in self.exports_storage:
+            logger.error(f"Export {export_id} not found in storage. Available exports: {list(self.exports_storage.keys())[:5]}")
             return None, None
 
         export_info = self.exports_storage[export_id]
+        
+        # Log export info for debugging
+        logger.debug(f"Downloading export {export_id}: type={export_info.get('export_type')}, filename={export_info.get('filename')}")
 
         # For multi-file exports, automatically use ZIP if single file requested
         if file_type == "single" and "zip_path" in export_info and "file_content" not in export_info:
             file_type = "zip"
 
         if file_type == "zip" and "zip_path" in export_info:
-            with open(export_info["zip_path"], 'rb') as f:
-                return f.read(), export_info["zip_filename"]
+            try:
+                zip_path = export_info["zip_path"]
+                if not os.path.exists(zip_path):
+                    logger.error(f"ZIP file not found at path: {zip_path}")
+                    return None, None
+                with open(zip_path, 'rb') as f:
+                    return f.read(), export_info["zip_filename"]
+            except Exception as e:
+                logger.error(f"Error reading ZIP file: {e}")
+                return None, None
 
         elif file_type == "single" and "file_content" in export_info:
-            return export_info["file_content"], export_info["filename"]
+            file_content = export_info["file_content"]
+            filename = export_info["filename"]
+            
+            if not file_content:
+                logger.error(f"Export {export_id} has no file content")
+                return None, None
+            
+            if not filename:
+                logger.warning(f"Export {export_id} has no filename, generating default")
+                export_type = export_info.get('export_type', 'export')
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{export_type}_export_{timestamp}.xlsx"
+            
+            return file_content, filename
 
+        logger.error(f"Export {export_id} has neither file_content nor zip_path")
         return None, None
     
     def download_batch_file(self, export_id, batch_number):

@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YBB Database Export - Simplified Frontend</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .feature-highlight {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        
+        .form-section h3 {
+            margin-top: 0;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        select, input, button {
+            padding: 12px;
+            border: 2px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #80bdff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #0056b3, #004085);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .export-button {
+            background: linear-gradient(135deg, #28a745, #198754);
+            padding: 15px 30px;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        
+        .stats-button {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .status.info {
+            background-color: #d1ecf1;
+            border: 2px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .statistics {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #bbdefb;
+        }
+        
+        .stat-item {
+            display: inline-block;
+            background: white;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            border: 1px solid #2196f3;
+            font-weight: 600;
+        }
+        
+        .download-section {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .download-link {
+            display: inline-block;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .download-link:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .api-info {
+            background: linear-gradient(135deg, #6f42c1, #495057);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 YBB Database Export Service</h1>
+        <p class="subtitle">Simplified frontend - backend fetches data directly from database</p>
+        
+        <div class="feature-highlight">
+            ✨ <strong>New:</strong> Frontend only sends filters and options. Backend handles all database queries and data processing!
+        </div>
+        
+        <div class="api-info">
+            <h3>🚀 API Status & Database Connection</h3>
+            <p><strong>Python API:</strong> http://127.0.0.1:5000</p>
+            <button type="button" id="testConnection" class="stats-button">Test API & Database Connection</button>
+            <div id="connectionStatus" class="status"></div>
+        </div>
+
+        <form id="exportForm">
+            <div class="form-section">
+                <h3>📊 Data Filters</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="program_id">Program ID:</label>
+                        <input type="number" id="program_id" name="program_id" placeholder="e.g. 101">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status">Participant Status:</label>
+                        <select id="status" name="status">
+                            <option value="all">All Statuses</option>
+                            <option value="approved">Approved</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="country">Country:</label>
+                        <input type="text" id="country" name="country" placeholder="e.g. USA, Canada, Japan">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date_from">From Date:</label>
+                        <input type="date" id="date_from" name="date_from">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date_to">To Date:</label>
+                        <input type="date" id="date_to" name="date_to">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="search">Search (Name/Email):</label>
+                        <input type="text" id="search" name="search" placeholder="Search participants...">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="limit">Limit Records:</label>
+                        <input type="number" id="limit" name="limit" placeholder="e.g. 1000 (leave empty for all)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sort_by">Sort By:</label>
+                        <select id="sort_by" name="sort_by">
+                            <option value="created_at">Created Date</option>
+                            <option value="name">Name</option>
+                            <option value="email">Email</option>
+                            <option value="updated_at">Last Updated</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sort_order">Sort Order:</label>
+                        <select id="sort_order" name="sort_order">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="button" id="getStatsBtn" class="stats-button">📈 Preview Export Statistics</button>
+            </div>
+            
+            <div class="form-section">
+                <h3>⚙️ Export Options</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="template">Export Template:</label>
+                        <select id="template" name="template">
+                            <option value="standard">Standard (10 columns)</option>
+                            <option value="detailed">Detailed (18 columns)</option>
+                            <option value="summary">Summary (5 columns)</option>
+                            <option value="complete">Complete (39 columns)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="format">File Format:</label>
+                        <select id="format" name="format">
+                            <option value="excel">Excel (.xlsx)</option>
+                            <option value="csv">CSV (.csv)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="filename">Custom Filename:</label>
+                        <input type="text" id="filename" name="filename" placeholder="Leave blank for auto-generated">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sheet_name">Sheet Name:</label>
+                        <input type="text" id="sheet_name" name="sheet_name" value="Participants Data">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" id="exportBtn" class="export-button">🚀 Export Participants from Database</button>
+        </form>
+        
+        <div class="spinner" id="loadingSpinner"></div>
+        <div id="statisticsResults"></div>
+        <div id="exportStatus" class="status"></div>
+        <div id="exportResults"></div>
+        
+        <div class="container">
+            <h3>💻 How This Works</h3>
+            <p>This simplified approach sends minimal data to the backend:</p>
+            
+            <div class="code-block">
+Frontend sends only filters and options:
+{
+  "filters": {
+    "program_id": 101,
+    "status": "approved",
+    "date_from": "2025-01-01",
+    "date_to": "2025-12-31"
+  },
+  "options": {
+    "template": "standard",
+    "format": "excel",
+    "filename": "custom_name.xlsx"
+  }
+}
+
+Backend handles:
+✅ Database connection and queries
+✅ Data retrieval and processing  
+✅ Excel file generation
+✅ File storage and cleanup
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://127.0.0.1:5000';
+        
+        // Test API and database connection
+        document.getElementById('testConnection').addEventListener('click', async function() {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status info';
+            statusDiv.innerHTML = '🔍 Testing API and database connection...';
+            
+            try {
+                // Test API health
+                const healthResponse = await fetch(`${API_BASE_URL}/health`);
+                const healthResult = await healthResponse.json();
+                
+                if (!healthResponse.ok) {
+                    throw new Error('API health check failed');
+                }
+                
+                // Test database connection
+                const dbResponse = await fetch(`${API_BASE_URL}/api/ybb/db/test-connection`);
+                const dbResult = await dbResponse.json();
+                
+                if (dbResponse.ok && dbResult.status === 'success') {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `
+                        ✅ <strong>System Status: All Good!</strong><br>
+                        🟢 API Service: ${healthResult.service} v${healthResult.version}<br>
+                        🟢 Database: Connected to ${dbResult.data?.database || 'database'} on ${dbResult.data?.host || 'localhost'}<br>
+                        🕒 Last checked: ${new Date().toLocaleTimeString()}
+                    `;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = `
+                        ⚠️ <strong>Partial System Status</strong><br>
+                        🟢 API Service: Working<br>
+                        ❌ Database: ${dbResult.message || 'Connection failed'}<br>
+                        💡 Please check database configuration
+                    `;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ <strong>System Error:</strong> ${error.message}`;
+            }
+        });
+        
+        // Get export statistics
+        document.getElementById('getStatsBtn').addEventListener('click', async function() {
+            const filters = getFormFilters();
+            const statsDiv = document.getElementById('statisticsResults');
+            
+            try {
+                this.disabled = true;
+                this.textContent = '📊 Loading...';
+                
+                const response = await fetch(`${API_BASE_URL}/api/ybb/db/export/statistics`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        export_type: 'participants',
+                        filters: filters
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    const data = result.data;
+                    const statusBreakdown = data.status_breakdown || [];
+                    
+                    let statusHtml = '';
+                    statusBreakdown.forEach(item => {
+                        statusHtml += `<span class="stat-item">${item.form_status || item.status}: ${item.count}</span>`;
+                    });
+                    
+                    statsDiv.innerHTML = `
+                        <div class="statistics">
+                            <h4>📊 Export Preview Statistics</h4>
+                            <p><strong>Total Records Found:</strong> ${data.total_count.toLocaleString()}</p>
+                            <div><strong>Status Breakdown:</strong><br>${statusHtml}</div>
+                            ${Object.keys(filters).length > 0 ? '<p><em>Filters applied: ' + Object.keys(filters).join(', ') + '</em></p>' : '<p><em>No filters applied</em></p>'}
+                        </div>
+                    `;
+                } else {
+                    statsDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Statistics failed: ${result.message}
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                statsDiv.innerHTML = `
+                    <div class="status error">
+                        ❌ Statistics error: ${error.message}
+                    </div>
+                `;
+            } finally {
+                this.disabled = false;
+                this.textContent = '📈 Preview Export Statistics';
+            }
+        });
+        
+        // Handle export form submission
+        document.getElementById('exportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const exportBtn = document.getElementById('exportBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const statusDiv = document.getElementById('exportStatus');
+            const resultsDiv = document.getElementById('exportResults');
+            
+            // Show loading state
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '⏳ Exporting from Database...';
+            loadingSpinner.style.display = 'block';
+            statusDiv.style.display = 'none';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                // Get filters and options from form
+                const filters = getFormFilters();
+                const options = getFormOptions();
+                
+                console.log('Sending export request:', { filters, options });
+                
+                // Call database export API
+                const response = await fetch(`${API_BASE_URL}/api/ybb/db/export/participants`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filters: filters,
+                        options: options
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    // Success
+                    statusDiv.className = 'status success';
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = '✅ Export completed successfully from database!';
+                    
+                    const data = result.data;
+                    const metadata = result.metadata || {};
+                    
+                    resultsDiv.innerHTML = `
+                        <div class="download-section">
+                            <h3>📋 Export Completed</h3>
+                            <p><strong>Export ID:</strong> ${data.export_id}</p>
+                            <p><strong>Filename:</strong> ${data.file_name}</p>
+                            <p><strong>Records Exported:</strong> ${data.record_count.toLocaleString()}</p>
+                            <p><strong>File Size:</strong> ${formatFileSize(data.file_size)}</p>
+                            <p><strong>Template Used:</strong> ${metadata.template || 'N/A'}</p>
+                            <p><strong>Processing Time:</strong> ${(metadata.processing_time || 0).toFixed(2)}s</p>
+                            
+                            <a href="${API_BASE_URL}/api/ybb/export/${data.export_id}/download" 
+                               class="download-link" target="_blank">
+                               📥 Download Excel File
+                            </a>
+                            
+                            <p><small><strong>Note:</strong> In production, downloads would go through your CI4 controller for security.</small></p>
+                        </div>
+                    `;
+                    
+                } else {
+                    // Error
+                    statusDiv.className = 'status error';
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = `❌ Export failed: ${result.message || 'Unknown error'}`;
+                }
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = `❌ Network error: ${error.message}`;
+            } finally {
+                // Reset UI
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = '🚀 Export Participants from Database';
+                loadingSpinner.style.display = 'none';
+            }
+        });
+        
+        // Helper functions
+        function getFormFilters() {
+            const filters = {};
+            
+            const program_id = document.getElementById('program_id').value;
+            if (program_id) filters.program_id = parseInt(program_id);
+            
+            const status = document.getElementById('status').value;
+            if (status && status !== 'all') filters.status = status;
+            
+            const country = document.getElementById('country').value;
+            if (country) filters.country = country;
+            
+            const date_from = document.getElementById('date_from').value;
+            if (date_from) filters.date_from = date_from;
+            
+            const date_to = document.getElementById('date_to').value;
+            if (date_to) filters.date_to = date_to;
+            
+            const search = document.getElementById('search').value;
+            if (search) filters.search = search;
+            
+            const limit = document.getElementById('limit').value;
+            if (limit) filters.limit = parseInt(limit);
+            
+            const sort_by = document.getElementById('sort_by').value;
+            if (sort_by) filters.sort_by = sort_by;
+            
+            const sort_order = document.getElementById('sort_order').value;
+            if (sort_order) filters.sort_order = sort_order;
+            
+            return filters;
+        }
+        
+        function getFormOptions() {
+            return {
+                template: document.getElementById('template').value,
+                format: document.getElementById('format').value,
+                filename: document.getElementById('filename').value || null,
+                sheet_name: document.getElementById('sheet_name').value || 'Participants Data',
+                include_related: true
+            };
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes >= 1024 * 1024) {
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            } else if (bytes >= 1024) {
+                return (bytes / 1024).toFixed(2) + ' KB';
+            } else {
+                return bytes + ' bytes';
+            }
+        }
+        
+        // Auto-test connection on page load
+        window.addEventListener('load', function() {
+            document.getElementById('testConnection').click();
+        });
+    </script>
+</body>
+</html>
