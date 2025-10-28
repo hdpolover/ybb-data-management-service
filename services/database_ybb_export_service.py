@@ -504,10 +504,16 @@ class DatabaseYBBExportService:
                 where_conditions.append("p.program_id = %s")
                 params.append(filters['program_id'])
             
-            if filters.get('status'):
-                if filters['status'] != 'all':
+            # Handle status filter - check for valid status value
+            status_filter = filters.get('status')
+            if status_filter is not None and str(status_filter).strip() != '' and str(status_filter).lower() != 'all':
+                try:
+                    status_value = int(status_filter)
                     where_conditions.append("pay.status = %s")
-                    params.append(int(filters['status']))
+                    params.append(status_value)
+                    logger.debug(f"Payment status filter applied: {status_value}")
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid status filter value: {status_filter}, ignoring")
             
             if filters.get('payment_method_id'):
                 where_conditions.append("pay.payment_method_id = %s")
@@ -552,6 +558,8 @@ class DatabaseYBBExportService:
                 params.append(filters['limit'])
             
             logger.info(f"Executing payments query with {len(params)} parameters")
+            logger.debug(f"SQL Query: {base_query}")
+            logger.debug(f"SQL Params: {params}")
             cursor.execute(base_query, params)
             
             payments = cursor.fetchall()
